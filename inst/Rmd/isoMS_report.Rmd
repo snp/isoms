@@ -1,0 +1,418 @@
+---
+title: "isoMS analysis report"
+author: "Alexey L. Chernobrovkin"
+#date: "6/29/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(isoms)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(broom)
+library(gridExtra)
+library(DT)
+require(knitr)
+
+```
+
+```{r anyAA, echo=FALSE, message=FALSE, warning=FALSE}
+mass_tol <- 1e-4
+if(is.na(group))
+  group='group'
+if(!(group  %in% names(data))){
+  data <- data %>% mutate(group="group")
+}else{
+  data <- data %>% mutate_(group=sprintf("`%s`", group))
+}
+data %>% 
+  filter(abs(masserror)<mass_tol) %>% 
+  group_by(group, seqNum, rt) %>%
+  do({
+    dd <- .
+    res <- data.frame()
+    elements <- setdiff(unique(dd$peak), '0')
+    for(el in elements){
+      good_aa <- (dd %>% filter(peak==el & I >0) %>% distinct(ion))$ion
+      i0s <- (dd %>% filter(ion %in% good_aa & peak=='0'))$I
+      i1s <- (dd %>% filter(ion %in% good_aa & peak==el))$I
+      ns <- (dd %>% filter(ion %in% good_aa & peak==el))$n
+
+            rs <- i1s/i0s
+      i0s <- i0s[rs<1]
+      i1s <- i1s[rs<1]
+      ns <- ns[rs<1]
+      rs <- rs[rs<1]
+      rs_good <- (abs(rs-median(rs))<1.5*mad(rs))
+      r <- sum(i1s[rs_good]/ns[rs_good])/sum(i0s[rs_good])
+      if(!is.na(r))
+        res <- res %>% bind_rows(data.frame(peak=el, gamma=r, logI = log2(sum(i1s))))
+    }
+    if(nrow(res)>0){
+      res$seqNum = dd$seqNum[[1]]
+      res$rt = dd$rt[[1]]
+      res$ion = 'any'
+    }
+    res
+  }) %>% ungroup() -> any_aa
+data %>%
+  filter(abs(masserror)<mass_tol) %>% 
+  filter(n>0 & I>0) %>% 
+  mutate(gamma=isoratio/n, logI=log2(I)) %>% 
+  select(group,peak, gamma, logI, seqNum, rt, ion) %>% 
+  bind_rows(any_aa) %>% ungroup() -> all_aa
+
+gg <- all_aa %>% distinct(group)
+
+
+```
+
+## Carbon: $$^{13}C/^{12}C$$
+
+### Data overview
+```{r 13C, echo=FALSE, message=FALSE, warning=FALSE}
+vals <- (all_aa %>% filter(peak=='13C'))$gamma
+vmin <- quantile(vals, 0.02)
+vmax <- quantile(vals, 0.98)
+
+all_aa %>% 
+  filter(peak=='13C') %>% 
+  group_by(ion) %>% 
+  summarize(m = median(gamma), md = mad(gamma)) -> mmad
+aa_data <- all_aa %>%
+  filter(peak=='13C') %>% 
+  left_join(mmad, by='ion') %>% 
+  filter(gamma>(m-3*md) & gamma < (m+3*md)) %>% 
+  filter(gamma>vmin & gamma < vmax)
+aa_data %>% 
+  ggplot(aes(x=rt/60, y=gamma, color=group)) + 
+    geom_point(size=0.1, alpha=0.2) + geom_smooth() +
+    theme_bw() + 
+    facet_grid(.~ion) + 
+    theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
+    xlab('RT, min') +
+    ylab(bquote(''^13*'C'/''^12*'C')) -> g_rt
+
+aa_data %>%
+  ggplot(aes(x=logI, y=gamma, color=group)) + 
+    geom_point(size=0.1, alpha=0.2) + #geom_smooth() +
+    theme_bw() + 
+    facet_grid(ion~.) + 
+    theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
+    ylim(c(vmin,vmax)) +
+    xlab('logI, a.u.') +
+    ylab(bquote(''^13*'C'/''^12*'C')) -> g_logI
+aa_data %>% 
+  ggplot(aes(x=ion, y=gamma, fill=group)) + geom_boxplot( outlier.color = NA, notch=T)  +
+  theme_bw() +
+  ylab(bquote(''^13*'C'/''^12*'C')) + xlab("") -> g_bp
+aa_data %>% 
+  ggplot(aes(x=ion, y=gamma, fill=group)) + geom_violin( outlier.color = NA, draw_quantiles = c(0.25, 0.5, 0.75))  +
+  theme_bw() +
+  ylab(bquote(''^13*'C'/''^12*'C')) + xlab("") -> g_violin
+aa_data %>% 
+  ggplot(aes(x=gamma, fill=group)) + geom_density(alpha=0.3)  +
+  theme_bw() +
+  xlab(bquote(''^13*'C'/''^12*'C')) + xlab("density") -> g_density
+
+#grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
+
+print(g_rt)
+print(g_logI)
+print(g_bp)
+print(g_density)
+
+aa_data %>% 
+  group_by(group, ion) %>% 
+  summarize(mean=mean(gamma)*100, median=median(gamma)*100, wmean = weighted.mean(gamma, logI)*100, sd = sd(gamma)*100, se = sd(gamma)/n()*100, n=n()) %>% 
+  arrange(ion) -> res_group
+tlist <- list()
+for(aa in unique(res_group$ion)){
+  tlist[[aa]] <- res_group %>% 
+    filter(ion==aa) %>% 
+    datatable() %>%  
+    formatSignif(c('mean','median','wmean','sd'), 6) %>%  formatSignif(c('se'), 1) %>%
+    formatStyle(
+      'mean',
+      background = styleColorBar(res_group$mean, 'steelblue'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    ) %>%
+    formatStyle(
+      'median',
+      background = styleColorBar(res_group$median, 'steelblue'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    ) %>%
+    formatStyle(
+      'wmean',
+      background = styleColorBar(res_group$wmean, 'steelblue'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )
+}
+htmltools::tagList(tlist)
+```
+
+## Nitrogen: $$^{15}N/^{14}N$$
+
+### Data overview
+```{r 15N, echo=FALSE, message=FALSE, warning=FALSE}
+vals <- (all_aa %>% filter(peak=='15N'))$gamma
+vmin <- quantile(vals, 0.05)
+vmax <- quantile(vals, 0.95)
+all_aa %>% 
+  filter(peak=='15N') %>% 
+  group_by(ion) %>% 
+  summarize(m = median(gamma), md = mad(gamma)) -> mmad
+aa_data <- all_aa %>%
+  filter(peak=='15N') %>% 
+  left_join(mmad, by='ion') %>% 
+  filter(gamma>(m-3*md) & gamma < (m+3*md)) %>% 
+  filter(gamma>vmin & gamma < vmax)
+
+aa_data %>% 
+  ggplot(aes(x=rt/60, y=gamma, color=group)) + 
+    geom_point(size=0.1, alpha=0.2) + geom_smooth() +
+    theme_bw() + 
+    facet_grid(.~ion) + 
+    theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
+    xlab('RT, min') +
+    ylab(bquote(''^15*'N'/''^14*'N')) -> g_rt
+
+aa_data %>% 
+  ggplot(aes(x=logI, y=gamma, color=group)) + 
+    geom_point(size=0.1, alpha=0.2) + geom_smooth() +
+    theme_bw() + 
+    facet_grid(ion~.) + 
+    theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
+    ylim(c(vmin,vmax)) +
+    xlab('logI, a.u.') +
+    ylab(bquote(''^15*'N'/''^14*'N')) -> g_logI
+aa_data %>% 
+  filter(gamma>vmin & gamma<vmax) %>% 
+  ggplot(aes(x=ion, y=gamma, fill=group)) + geom_boxplot( outlier.color = NA, notch=T)  +
+  theme_bw() +
+  ylab(bquote(''^15*'N'/''^14*'N')) + xlab("") -> g_bp
+aa_data %>% 
+  ggplot(aes(x=gamma, fill=group)) + geom_density(alpha=0.3)  +
+  theme_bw() +
+  xlab(bquote(''^15*'N'/''^14*'N')) + xlab("density") -> g_density
+
+#grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
+
+print(g_rt)
+print(g_logI)
+print(g_bp)
+print(g_density)
+
+aa_data %>% 
+  group_by(group, ion) %>% 
+  summarize(mean=mean(gamma)*100, median=median(gamma)*100, wmean = weighted.mean(gamma, logI)*100, sd = sd(gamma)*100, se = sd(gamma)/n()*100, n=n()) %>% 
+  arrange(ion) -> res_group
+tlist <- list()
+for(aa in unique(res_group$ion)){
+  tlist[[aa]] <- res_group %>% 
+    filter(ion==aa) %>% 
+    datatable() %>%  
+    formatSignif(c('mean','median','wmean','sd'), 6) %>%  formatSignif(c('se'), 1) %>%
+    formatStyle(
+      'mean',
+      background = styleColorBar(res_group$mean, 'steelblue'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    ) %>%
+    formatStyle(
+      'median',
+      background = styleColorBar(res_group$median, 'steelblue'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    ) %>%
+    formatStyle(
+      'wmean',
+      background = styleColorBar(res_group$wmean, 'steelblue'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )
+}
+htmltools::tagList(tlist)
+```
+
+## Hydrogen: $$^{2}H/^{1}H$$
+
+### Data overview
+```{r 2H, echo=FALSE, message=FALSE, warning=FALSE}
+vals <- (all_aa %>% filter(peak=='2H'))$gamma
+vmin <- quantile(vals, 0.05)
+vmax <- quantile(vals, 0.95)
+all_aa %>% 
+  filter(peak=='2H') %>% 
+  group_by(ion) %>% 
+  summarize(m = median(gamma), md = mad(gamma)) -> mmad
+aa_data <- all_aa %>%
+  filter(peak=='2H') %>% 
+  left_join(mmad, by='ion') %>% 
+  filter(gamma>(m-3*md) & gamma < (m+3*md)) %>% 
+  filter(gamma>vmin & gamma < vmax)
+aa_data %>% 
+  ggplot(aes(x=rt/60, y=gamma, color=group)) + 
+    geom_point(size=0.1, alpha=0.2) + geom_smooth() +
+    theme_bw() + 
+    facet_grid(.~ion) + 
+    theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
+    xlab('RT, min') +
+    ylab(bquote(''^2*'H'/''^1*'H')) -> g_rt
+
+aa_data %>% 
+  ggplot(aes(x=logI, y=gamma, color=group)) + 
+    geom_point(size=0.1, alpha=0.2) + geom_smooth() +
+    theme_bw() + 
+    facet_grid(ion~.) + 
+    theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
+    ylim(c(vmin,vmax)) +
+    xlab('logI, a.u.') +
+    ylab(bquote(''^2*'H'/''^1*'H')) -> g_logI
+aa_data %>% 
+  ggplot(aes(x=ion, y=gamma, fill=group)) + geom_boxplot( outlier.color = NA, notch=T)  +
+  theme_bw() +
+  ylab(bquote(''^2*'H'/''^1*'H')) + xlab("") -> g_bp
+aa_data %>% 
+  ggplot(aes(x=gamma, fill=group)) + geom_density(alpha=0.3)  +
+  theme_bw() +
+  xlab(bquote(''^2*'H'/''^1*'H')) + xlab("density") -> g_density
+
+#grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
+
+print(g_rt)
+print(g_logI)
+print(g_bp)
+print(g_density)
+
+aa_data %>% 
+  group_by(group, ion) %>% 
+  summarize(mean=mean(gamma)*100, median=median(gamma)*100, wmean = weighted.mean(gamma, logI)*100, sd = sd(gamma)*100, se = sd(gamma)/n()*100, n=n()) %>% 
+  arrange(ion) -> res_group
+tlist <- list()
+for(aa in unique(res_group$ion)){
+  tlist[[aa]] <- res_group %>% 
+    filter(ion==aa) %>% 
+    datatable() %>%  
+    formatSignif(c('mean','median','wmean','sd'), 6) %>%  formatSignif(c('se'), 1) %>%
+    formatStyle(
+      'mean',
+      background = styleColorBar(res_group$mean, 'steelblue'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    ) %>%
+    formatStyle(
+      'median',
+      background = styleColorBar(res_group$median, 'steelblue'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    ) %>%
+    formatStyle(
+      'wmean',
+      background = styleColorBar(res_group$wmean, 'steelblue'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )
+}
+htmltools::tagList(tlist)
+```
+
+## Oxygen: $$^{18}O/^{16}O$$
+
+### Data overview
+```{r 18O, echo=FALSE, message=FALSE, warning=FALSE}
+vals <- (all_aa %>% filter(peak=='18O'))$gamma
+vmin <- quantile(vals, 0.05)
+vmax <- quantile(vals, 0.95)
+all_aa %>% 
+  filter(peak=='18O') %>% 
+  group_by(ion) %>% 
+  summarize(m = median(gamma), md = mad(gamma)) -> mmad
+aa_data <- all_aa %>%
+  filter(peak=='18O') %>% 
+  left_join(mmad, by='ion') %>% 
+  filter(gamma>(m-3*md) & gamma < (m+3*md)) %>% 
+  filter(gamma>vmin & gamma < vmax)
+aa_data %>% 
+  ggplot(aes(x=rt/60, y=gamma, color=group)) + 
+    geom_point(size=0.1, alpha=0.2) + geom_smooth() +
+    theme_bw() + 
+    facet_grid(.~ion) + 
+    theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
+    xlab('RT, min') +
+    ylab(bquote(''^18*'O'/''^16*'O')) -> g_rt
+
+aa_data %>% 
+  ggplot(aes(x=logI, y=gamma, color=group)) + 
+    geom_point(size=0.1, alpha=0.2) + geom_smooth() +
+    theme_bw() + 
+    facet_grid(ion~.) + 
+    theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
+    ylim(c(vmin,vmax)) +
+    xlab('logI, a.u.') +
+    ylab(bquote(''^18*'O'/''^16*'O')) -> g_logI
+aa_data %>% 
+  ggplot(aes(x=ion, y=gamma, fill=group)) + geom_boxplot( outlier.color = NA, notch=T)  +
+  theme_bw() +
+  ylab(bquote(''^18*'O'/''^16*'O')) + xlab("") -> g_bp
+aa_data %>% 
+  ggplot(aes(x=gamma, fill=group)) + geom_density(alpha=0.3)  +
+  theme_bw() +
+  xlab(bquote(''^18*'O'/''^16*'O')) + xlab("density") -> g_density
+
+#grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
+
+print(g_rt)
+print(g_logI)
+print(g_bp)
+print(g_density)
+
+aa_data %>% 
+  group_by(group, ion) %>% 
+  summarize(mean=mean(gamma)*100, median=median(gamma)*100, wmean = weighted.mean(gamma, logI)*100, sd = sd(gamma)*100, se = sd(gamma)/n()*100, n=n()) %>% 
+  arrange(ion) -> res_group
+tlist <- list()
+for(aa in unique(res_group$ion)){
+  tlist[[aa]] <- res_group %>% 
+    filter(ion==aa) %>% 
+    datatable() %>%  
+    formatSignif(c('mean','median','wmean','sd'), 6) %>%  formatSignif(c('se'), 1) %>%
+    formatStyle(
+      'mean',
+      background = styleColorBar(res_group$mean, 'steelblue'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    ) %>%
+    formatStyle(
+      'median',
+      background = styleColorBar(res_group$median, 'steelblue'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    ) %>%
+    formatStyle(
+      'wmean',
+      background = styleColorBar(res_group$wmean, 'steelblue'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )
+}
+htmltools::tagList(tlist)
+```
+
