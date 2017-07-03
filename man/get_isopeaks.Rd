@@ -2,14 +2,34 @@
 % Please edit documentation in R/getIsoPeaks.R
 \name{get_isopeaks}
 \alias{get_isopeaks}
-\title{Title}
+\title{Fit isotopic peaks for specified m/z}
 \usage{
 get_isopeaks(ss, mz, width = 0.002, npoint = 10, tol = 0.01,
   fixSigma = T)
 }
 \arguments{
-\item{fixSigma}{}
+\item{ss}{Spectrum formatted as numeric matrix with 2 columns (m/z and i),
+sorted by mz}
+
+\item{mz}{m/z value corresponding to the monoisotopic mass of singly charged
+ion}
+
+\item{width}{m/z interval for searching the isotopic peaks. Default value is
+0.002 which is good for resolution 50-60K (at m/z=200).}
+
+\item{npoint}{Minimum number of data points in the peak. If peak have less
+points it will be rejected.}
+
+\item{tol}{m/z tolerance for searching monoisotopic peak.}
+
+\item{fixSigma}{If True, then peak width is only fitted for monoisotopic
+peak, and then it is fixed for the rest isotopes.}
+}
+\value{
+Dataframe with peak parameters
 }
 \description{
-Title
+Petforms peak fitting at provided 'm/z' value, and also at m/z values
+corresponding to the 13C, 15N, 2H and 18O isotopes. Returns data_frame
+object containing information about fitting results.
 }

@@ -1,13 +1,23 @@
-#' Title
+#' Isotopic peaks fitting for specified m/z
 #'
-#' @param ss
-#' @param mz
-#' @param width
-#' @param npoint
-#' @param tol
-#' @param fixSigma
+#' Petforms peak fitting at provided 'm/z' value, and also at m/z values
+#' corresponding to the 13C, 15N, 2H and 18O isotopes. Returns data_frame
+#' object containing information about fitting results.
 #'
-#' @return
+#'
+#' @param ss Spectrum formatted as numeric matrix with 2 columns (m/z and i),
+#' sorted by mz
+#' @param mz m/z value corresponding to the monoisotopic mass of singly charged
+#' ion
+#' @param width m/z interval for searching the isotopic peaks. Default value is
+#' 0.002 which is good for resolution 50-60K (at m/z=200).
+#' @param npoint Minimum number of data points in the peak. If peak have less
+#' points it will be rejected.
+#' @param tol m/z tolerance for searching monoisotopic peak.
+#' @param fixSigma If True, then peak width is only fitted for monoisotopic
+#' peak, and then it is fixed for the rest isotopes.
+#'
+#' @return Dataframe with peak parameters
 #' @export
 #'
 #' @examples
@@ -18,10 +28,7 @@ get_isopeaks <- function(ss,
                          tol = 0.01,
                          fixSigma=T) {
   # Checking input data
-  if (length(dim(ss)) != 2) {
-    warning("Bad input")
-    return(data.frame())
-  }
+  stopifnot(dim(ss) == 2)
   # here we'll put our result
   res <- data.frame()
 
