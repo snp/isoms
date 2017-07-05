@@ -29,7 +29,7 @@ get_isopeaks_nomono <- function(ss,
                          tol = 0.01,
                          fixSigma=T) {
   # Checking input data
-  stopifnot(dim(ss) == 2)
+  stopifnot(length(dim(ss)) == 2)
   # here we'll put our result
   res <- data.frame()
 

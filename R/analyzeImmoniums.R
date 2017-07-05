@@ -40,11 +40,10 @@ analyze_immoniums <- function(file, width=0.001, ions=immoniumIons, fixSigma=T){
               cres %>%
                 mutate(
                   rt = dd$retentionTime[[1]],
-                  scan = ii,
+#                  scan = ii,
                   ion=ion_)
             )
       }
-      # print(ires)
       ires$n <- apply(ires, 1, function(x)ions[[x["ion"]]][sub("\\d+","",x["peak"])])
       ires
     }) -> result

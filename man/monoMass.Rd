@@ -2,22 +2,21 @@
 % Please edit documentation in R/monoMass.R
 \name{monoMass}
 \alias{monoMass}
-\title{monoMass function calculates the monoisotopic mass of a molecule with a
-composition \code{comp}}
+\title{monoMass}
 \usage{
 monoMass(comp)
 }
 \arguments{
-\item{comp}{- named vector of molecule composition, e.g.
+\item{comp}{- named vector or list of molecule composition, e.g.
 \code{c('C' = 4, 'H' = 8, 'N' = 1)}}
 }
 \value{
 monoisotopic mass of the molecule
 }
 \description{
-monoMass function calculates the monoisotopic mass of a molecule with a
-composition \code{comp}
+calculates the monoisotopic mass of a molecule with a composition \code{comp}
 }
 \examples{
 monoMass(c('C' = 4, 'H' = 8, 'N' = 1)) # 70.06567
+monoMass(list('C' = 4, 'H' = 8, 'N' = 1)) # 70.06567
 }

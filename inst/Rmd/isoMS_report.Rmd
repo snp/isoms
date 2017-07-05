@@ -29,13 +29,12 @@ vmax <- quantile(vals, 0.98)
 
 all_aa %>% 
   filter(peak=='13C') %>% 
-  group_by(ion) %>% 
+  group_by(ion,file) %>% 
   summarize(m = median(gamma), md = mad(gamma)) -> mmad
 aa_data <- all_aa %>%
   filter(peak=='13C') %>% 
-  left_join(mmad, by='ion') %>% 
-  filter(gamma>(m-3*md) & gamma < (m+3*md)) %>% 
-  filter(gamma>vmin & gamma < vmax)
+  left_join(mmad, by=c('ion','file')) %>% 
+  filter(gamma>(m-3*md) & gamma < (m+3*md))
 aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% arrange(md))$ion)
 aa_data %>% 
   ggplot(aes(x=rt/60, y=gamma, color=file)) + 
@@ -163,13 +162,12 @@ vmin <- quantile(vals, 0.05)
 vmax <- quantile(vals, 0.95)
 all_aa %>% 
   filter(peak=='15N') %>% 
-  group_by(ion) %>% 
+  group_by(ion, file) %>% 
   summarize(m = median(gamma), md = mad(gamma)) -> mmad
 aa_data <- all_aa %>%
   filter(peak=='15N') %>% 
-  left_join(mmad, by='ion') %>% 
-  filter(gamma>(m-3*md) & gamma < (m+3*md)) %>% 
-  filter(gamma>vmin & gamma < vmax)
+  left_join(mmad, by=c('ion','file')) %>% 
+  filter(gamma>(m-3*md) & gamma < (m+3*md))
 aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% arrange(md))$ion)
 
 aa_data %>% 
@@ -296,13 +294,12 @@ vmin <- quantile(vals, 0.05)
 vmax <- quantile(vals, 0.95)
 all_aa %>% 
   filter(peak=='2H') %>% 
-  group_by(ion) %>% 
+  group_by(ion,file) %>% 
   summarize(m = median(gamma), md = mad(gamma)) -> mmad
 aa_data <- all_aa %>%
   filter(peak=='2H') %>% 
-  left_join(mmad, by='ion') %>% 
-  filter(gamma>(m-3*md) & gamma < (m+3*md)) %>% 
-  filter(gamma>vmin & gamma < vmax)
+  left_join(mmad, by=c('ion','file')) %>% 
+  filter(gamma>(m-3*md) & gamma < (m+3*md))
 aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% arrange(md))$ion)
 aa_data %>% 
   ggplot(aes(x=rt/60, y=gamma, color=file)) + 
@@ -428,13 +425,12 @@ vmin <- quantile(vals, 0.05)
 vmax <- quantile(vals, 0.95)
 all_aa %>% 
   filter(peak=='18O') %>% 
-  group_by(ion) %>% 
+  group_by(ion,file) %>% 
   summarize(m = median(gamma), md = mad(gamma)) -> mmad
 aa_data <- all_aa %>%
   filter(peak=='18O') %>% 
-  left_join(mmad, by='ion') %>% 
-  filter(gamma>(m-3*md) & gamma < (m+3*md)) %>% 
-  filter(gamma>vmin & gamma < vmax)
+  left_join(mmad, by=c('ion','file')) %>% 
+  filter(gamma>(m-3*md) & gamma < (m+3*md))
 aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% arrange(md))$ion)
 aa_data %>% 
   ggplot(aes(x=rt/60, y=gamma, color=file)) + 

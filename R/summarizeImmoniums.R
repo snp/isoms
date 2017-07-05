@@ -49,10 +49,15 @@ summarizeImmoniums <- function(data=NA, files=NA, group=ifelse(is.na(data), 'fil
   spectra <- unique(data$seqNum)
   mono_spectra <- unique((data %>% filter(peak=='0'))$seqNum)
   nomono_spectra <- setdiff(spectra, mono_spectra)
+  require(multidplyr)
+  cl <- create_cluster()
+  cluster_library(cl, "dplyr")
+  set_default_cluster(cl)
 
   data %>%
     filter(abs(masserror)<mass_tol) %>%
-    group_by(group,file, seqNum, rt) %>%
+#    group_by(group,file, seqNum, rt) %>%
+    partition(group,file, seqNum, rt) %>%
     do({
       dd <- .
       res <- data.frame()
@@ -79,7 +84,7 @@ summarizeImmoniums <- function(data=NA, files=NA, group=ifelse(is.na(data), 'fil
         res$ion = 'any'
       }
       res
-    }) %>% ungroup() -> any_aa
+    }) %>% collect() %>%  ungroup() -> any_aa
   data %>%
     filter(abs(masserror)<mass_tol) %>%
     filter(n>0 & I>0) %>%
@@ -116,6 +121,38 @@ summarizeImmoniums <- function(data=NA, files=NA, group=ifelse(is.na(data), 'fil
       ) %>%
       arrange(cv_wmean) %>%
       write_csv(file.path(resultPath, sprintf("group_summary_%s.csv", pp)))
+  }
+  if(length(nomono_spectra)>0){
+    cN <- (data %>% ungroup() %>% filter(seqNum %in% nomono_spectra) %>% filter(peak=='13C') %>% slice(1:1))$n
+    gC <- 0.01
+    data %>%
+      filter(seqNum %in% nomono_spectra) %>%
+      # filter(abs(masserror)<mass_tol) %>%
+      filter(n>0 & I>0) %>%
+      mutate(gamma=isoratio/n*cN*gC, logI=log2(I)) -> narrow_data
+    narrow_data %>%
+      group_by(peak, file ) %>%
+      summarize(m = median(gamma), md = mad(gamma)) -> narrowmmad
+
+    narrow_data%>%
+      left_join(narrowmmad %>% ungroup(), by=c('peak','file')) %>%
+      filter(md>0) %>%
+      filter(gamma>(m-3*md) & gamma < (m+3*md)) %>%
+      group_by(ion,peak, group, file) %>%
+      summarize(mean=mean(gamma)*100, median=median(gamma)*100, wmean = weighted.mean(gamma, logI)*100, sd = sd(gamma)*100, se = sd(gamma)/sqrt(n())*100, n=n()) %>%
+      mutate(CV = se/wmean*100) %>%
+      arrange(ion) -> narrowres_f
+    narrowres_f %>% write_csv(file.path(resultPath, sprintf("narrow_file_summary.csv")))
+    narrowres_f %>%
+      summarize(gmean=mean(mean), gmedian=mean(median), gwmean=mean(wmean), sd_mean=sd(mean), sd_median=sd(median), sd_wmean=sd(wmean), n=n()) %>%
+      mutate(
+        cv_mean = sd_mean/gmean/sqrt(n)*100,
+        cv_median = sd_median/gmedian/sqrt(n)*100,
+        cv_wmean = sd_wmean/gwmean/sqrt(n)*100
+      ) %>%
+      arrange(cv_wmean) %>%
+      write_csv(file.path(resultPath, sprintf("narrow_group_summary.csv")))
+
   }
 
   gg <- all_aa %>% distinct(group)
