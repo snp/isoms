@@ -22,7 +22,8 @@ require(knitr)
 ## Carbon: $$^{13}C/^{12}C$$
 
 ### Data overview
-```{r 13C, echo=FALSE, message=FALSE, warning=FALSE}
+
+```{r 13C, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12, fig.height=12}
 vals <- (all_aa %>% filter(peak=='13C'))$gamma
 vmin <- quantile(vals, 0.02)
 vmax <- quantile(vals, 0.98)
@@ -35,9 +36,9 @@ aa_data <- all_aa %>%
   filter(peak=='13C') %>% 
   left_join(mmad, by=c('ion','file')) %>% 
   filter(gamma>(m-3*md) & gamma < (m+3*md))
-aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% arrange(md))$ion)
+aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% arrange(md))$ion)
 aa_data %>% 
-  ggplot(aes(x=rt/60, y=gamma, color=file)) + 
+  ggplot(aes(x=rt/60, y=gamma, group=file, color=group)) + 
     geom_point(size=0.1, alpha=0.2) + #geom_smooth() +
     theme_bw() + 
     facet_grid(.~ion) + 
@@ -46,26 +47,29 @@ aa_data %>%
     ylab(bquote(''^13*'C'/''^12*'C')) -> g_rt
 
 aa_data %>%
-  ggplot(aes(x=logI, y=gamma, color=file)) + 
+  ggplot(aes(x=logI, y=gamma, group=file, color=group)) + 
     geom_point(size=0.1, alpha=0.2) + #geom_smooth() +
     theme_bw() + 
     facet_grid(ion~.) + 
     theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
-    ylim(c(vmin,vmax)) +
     xlab('logI, a.u.') +
     ylab(bquote(''^13*'C'/''^12*'C')) -> g_logI
 aa_data %>% 
-  ggplot(aes(x=ion, y=gamma, fill=file)) + geom_boxplot( outlier.color = NA, notch=T)  +
+  ggplot(aes(x=file, y=gamma, fill=group)) + geom_boxplot(position='dodge', outlier.color = NA, notch=T)  +
   theme_bw() +
-  ylab(bquote(''^13*'C'/''^12*'C')) + xlab("") -> g_bp
+  theme(legend.position = "")+ 
+  ylab(bquote(''^13*'C'/''^12*'C')) + xlab("") +
+  facet_wrap(~ion) -> g_bp
 aa_data %>% 
   ggplot(aes(x=ion, y=gamma, fill=file)) + geom_violin( outlier.color = NA, draw_quantiles = c(0.25, 0.5, 0.75))  +
   theme_bw() +
+  theme(legend.position = "")+ 
   ylab(bquote(''^13*'C'/''^12*'C')) + xlab("") -> g_violin
 aa_data %>% 
   filter(ion=='any') %>% 
-  ggplot(aes(x=gamma, fill=file)) + geom_density(alpha=0.3)  +
+  ggplot(aes(x=gamma, group=file, fill=group)) + geom_density(alpha=0.3)  +
   theme_bw() +
+  theme(legend.position = "")+ 
   xlab(bquote(''^13*'C'/''^12*'C')) + ylab("density") -> g_density
 
 #grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
@@ -78,7 +82,7 @@ print(g_density)
 
 ### File summaries
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12}
 
 aa_data %>% 
   group_by(ion, group,file) %>% 
@@ -86,27 +90,29 @@ aa_data %>%
   arrange(ion) -> res_group
 tlist <- list()
 for(aa in unique(res_group$ion)){
-  tlist[[aa]] <- res_group %>% 
-    filter(ion==aa) %>% 
+  tt <- res_group %>% 
+    filter(ion==aa)
+  
+  tlist[[aa]] <- tt %>% 
     datatable() %>%  
     formatSignif(c('mean','median','wmean','sd'), 6) %>%  formatSignif(c('se'), 1) %>%
     formatStyle(
       'mean',
-      background = styleColorBar(res_group$mean, 'steelblue'),
+      background = styleColorBar(tt$mean, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
     ) %>%
     formatStyle(
       'median',
-      background = styleColorBar(res_group$median, 'steelblue'),
+      background = styleColorBar(tt$median, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
     ) %>%
     formatStyle(
       'wmean',
-      background = styleColorBar(res_group$wmean, 'steelblue'),
+      background = styleColorBar(tt$wmean, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
@@ -132,21 +138,21 @@ res %>%
     formatSignif(c('cv_mean','cv_median','cv_wmean'), 2) %>%
     formatStyle(
       'gmean',
-      background = styleColorBar(res_group$mean, 'steelblue'),
+      background = styleColorBar(res$gmean, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
     ) %>%
     formatStyle(
       'gmedian',
-      background = styleColorBar(res_group$median, 'steelblue'),
+      background = styleColorBar(res$gmedian, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
     ) %>%
     formatStyle(
       'gwmean',
-      background = styleColorBar(res_group$wmean, 'steelblue'),
+      background = styleColorBar(res$gwmean, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
@@ -156,7 +162,7 @@ res %>%
 ## Nitrogen: $$^{15}N/^{14}N$$
 
 ### Data overview
-```{r 15N, echo=FALSE, message=FALSE, warning=FALSE}
+```{r 15N, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12}
 vals <- (all_aa %>% filter(peak=='15N'))$gamma
 vmin <- quantile(vals, 0.05)
 vmax <- quantile(vals, 0.95)
@@ -168,10 +174,10 @@ aa_data <- all_aa %>%
   filter(peak=='15N') %>% 
   left_join(mmad, by=c('ion','file')) %>% 
   filter(gamma>(m-3*md) & gamma < (m+3*md))
-aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% arrange(md))$ion)
+aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% arrange(md))$ion)
 
 aa_data %>% 
-  ggplot(aes(x=rt/60, y=gamma, color=file)) + 
+  ggplot(aes(x=rt/60, y=gamma, group=file,color=group)) + 
     geom_point(size=0.1, alpha=0.2) + #geom_smooth() +
     theme_bw() + 
     facet_grid(.~ion) + 
@@ -180,23 +186,25 @@ aa_data %>%
     ylab(bquote(''^15*'N'/''^14*'N')) -> g_rt
 
 aa_data %>% 
-  ggplot(aes(x=logI, y=gamma, color=file)) + 
+  ggplot(aes(x=logI, y=gamma, group=file, color=group)) + 
     geom_point(size=0.1, alpha=0.2) + #geom_smooth() +
     theme_bw() + 
     facet_grid(ion~.) + 
     theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
-    ylim(c(vmin,vmax)) +
     xlab('logI, a.u.') +
     ylab(bquote(''^15*'N'/''^14*'N')) -> g_logI
 aa_data %>% 
   filter(gamma>vmin & gamma<vmax) %>% 
-  ggplot(aes(x=ion, y=gamma, fill=file)) + geom_boxplot( outlier.color = NA, notch=T)  +
+  ggplot(aes(x=file, y=gamma, fill=group)) + geom_boxplot( outlier.color = NA, notch=T)  +
   theme_bw() +
-  ylab(bquote(''^15*'N'/''^14*'N')) + xlab("") -> g_bp
+  theme(legend.position = "")+ 
+  ylab(bquote(''^15*'N'/''^14*'N')) + xlab("") +
+    facet_wrap(~ion) -> g_bp
 aa_data %>% 
   filter(ion=='any') %>% 
-  ggplot(aes(x=gamma, fill=file)) + geom_density(alpha=0.3)  +
+  ggplot(aes(x=gamma, group=file, fill=group)) + geom_density(alpha=0.3)  +
   theme_bw() +
+  theme(legend.position = "")+ 
   xlab(bquote(''^15*'N'/''^14*'N')) + ylab("density") -> g_density
 
 #grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
@@ -218,27 +226,28 @@ aa_data %>%
   arrange(ion) -> res_group
 tlist <- list()
 for(aa in unique(res_group$ion)){
-  tlist[[aa]] <- res_group %>% 
-    filter(ion==aa) %>% 
+  tt <- res_group %>% 
+    filter(ion==aa)
+  tlist[[aa]] <- tt %>% 
     datatable() %>%  
     formatSignif(c('mean','median','wmean','sd'), 6) %>%  formatSignif(c('se'), 1) %>%
     formatStyle(
       'mean',
-      background = styleColorBar(res_group$mean, 'steelblue'),
+      background = styleColorBar(tt$mean, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
     ) %>%
     formatStyle(
       'median',
-      background = styleColorBar(res_group$median, 'steelblue'),
+      background = styleColorBar(tt$median, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
     ) %>%
     formatStyle(
       'wmean',
-      background = styleColorBar(res_group$wmean, 'steelblue'),
+      background = styleColorBar(tt$wmean, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
@@ -264,21 +273,21 @@ res %>%
     formatSignif(c('cv_mean','cv_median','cv_wmean'), 2) %>%
     formatStyle(
       'gmean',
-      background = styleColorBar(res_group$mean, 'steelblue'),
+      background = styleColorBar(res$gmean, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
     ) %>%
     formatStyle(
       'gmedian',
-      background = styleColorBar(res_group$median, 'steelblue'),
+      background = styleColorBar(res$gmedian, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
     ) %>%
     formatStyle(
       'gwmean',
-      background = styleColorBar(res_group$wmean, 'steelblue'),
+      background = styleColorBar(res$gwmean, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
@@ -288,7 +297,7 @@ res %>%
 ## Hydrogen: $$^{2}H/^{1}H$$
 
 ### Data overview
-```{r 2H, echo=FALSE, message=FALSE, warning=FALSE}
+```{r 2H, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12}
 vals <- (all_aa %>% filter(peak=='2H'))$gamma
 vmin <- quantile(vals, 0.05)
 vmax <- quantile(vals, 0.95)
@@ -300,7 +309,7 @@ aa_data <- all_aa %>%
   filter(peak=='2H') %>% 
   left_join(mmad, by=c('ion','file')) %>% 
   filter(gamma>(m-3*md) & gamma < (m+3*md))
-aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% arrange(md))$ion)
+aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% arrange(md))$ion)
 aa_data %>% 
   ggplot(aes(x=rt/60, y=gamma, color=file)) + 
     geom_point(size=0.1, alpha=0.2) + #geom_smooth() +
@@ -311,22 +320,24 @@ aa_data %>%
     ylab(bquote(''^2*'H'/''^1*'H')) -> g_rt
 
 aa_data %>% 
-  ggplot(aes(x=logI, y=gamma, color=file)) + 
+  ggplot(aes(x=logI, y=gamma, color=group, group=file)) + 
     geom_point(size=0.1, alpha=0.2) + #geom_smooth() +
     theme_bw() + 
     facet_grid(ion~.) + 
     theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
-    ylim(c(vmin,vmax)) +
     xlab('logI, a.u.') +
     ylab(bquote(''^2*'H'/''^1*'H')) -> g_logI
 aa_data %>% 
-  ggplot(aes(x=ion, y=gamma, fill=file)) + geom_boxplot( outlier.color = NA, notch=T)  +
+  ggplot(aes(x=file, y=gamma, fill=group)) + geom_boxplot( outlier.color = NA, notch=T)  +
   theme_bw() +
-  ylab(bquote(''^2*'H'/''^1*'H')) + xlab("") -> g_bp
+  theme(legend.position = "")+ 
+  ylab(bquote(''^2*'H'/''^1*'H')) + xlab("") +
+  facet_wrap(~ion) -> g_bp
 aa_data %>% 
   filter(ion=='any') %>% 
-  ggplot(aes(x=gamma, fill=file)) + geom_density(alpha=0.3)  +
+  ggplot(aes(x=gamma, fill=group, group=file)) + geom_density(alpha=0.3)  +
   theme_bw() +
+  theme(legend.position = "")+ 
   xlab(bquote(''^2*'H'/''^1*'H')) + xlab("density") -> g_density
 
 #grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
@@ -348,27 +359,28 @@ aa_data %>%
   arrange(ion) -> res_group
 tlist <- list()
 for(aa in unique(res_group$ion)){
-  tlist[[aa]] <- res_group %>% 
-    filter(ion==aa) %>% 
+  tt <- res_group %>% 
+    filter(ion==aa)
+  tlist[[aa]] <- tt %>% 
     datatable() %>%  
     formatSignif(c('mean','median','wmean','sd'), 6) %>%  formatSignif(c('se'), 1) %>%
     formatStyle(
       'mean',
-      background = styleColorBar(res_group$mean, 'steelblue'),
+      background = styleColorBar(tt$mean, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
     ) %>%
     formatStyle(
       'median',
-      background = styleColorBar(res_group$median, 'steelblue'),
+      background = styleColorBar(tt$median, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
     ) %>%
     formatStyle(
       'wmean',
-      background = styleColorBar(res_group$wmean, 'steelblue'),
+      background = styleColorBar(tt$wmean, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
@@ -394,21 +406,21 @@ res %>%
     formatSignif(c('cv_mean','cv_median','cv_wmean'), 2) %>%
     formatStyle(
       'gmean',
-      background = styleColorBar(res_group$mean, 'steelblue'),
+      background = styleColorBar(res$gmean, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
     ) %>%
     formatStyle(
       'gmedian',
-      background = styleColorBar(res_group$median, 'steelblue'),
+      background = styleColorBar(res$gmedian, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
     ) %>%
     formatStyle(
       'gwmean',
-      background = styleColorBar(res_group$wmean, 'steelblue'),
+      background = styleColorBar(res$gwmean, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
@@ -419,7 +431,7 @@ res %>%
 
 ### Data overview
 
-```{r 18O, echo=FALSE, message=FALSE, warning=FALSE}
+```{r 18O, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12}
 vals <- (all_aa %>% filter(peak=='18O'))$gamma
 vmin <- quantile(vals, 0.05)
 vmax <- quantile(vals, 0.95)
@@ -431,9 +443,9 @@ aa_data <- all_aa %>%
   filter(peak=='18O') %>% 
   left_join(mmad, by=c('ion','file')) %>% 
   filter(gamma>(m-3*md) & gamma < (m+3*md))
-aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% arrange(md))$ion)
+aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% arrange(md))$ion)
 aa_data %>% 
-  ggplot(aes(x=rt/60, y=gamma, color=file)) + 
+  ggplot(aes(x=rt/60, y=gamma, color=group, group=file)) + 
     geom_point(size=0.1, alpha=0.2) + #geom_smooth() +
     theme_bw() + 
     facet_grid(.~ion) + 
@@ -442,22 +454,24 @@ aa_data %>%
     ylab(bquote(''^18*'O'/''^16*'O')) -> g_rt
 
 aa_data %>% 
-  ggplot(aes(x=logI, y=gamma, color=file)) + 
+  ggplot(aes(x=logI, y=gamma, color=group, group=file)) + 
     geom_point(size=0.1, alpha=0.2) + #geom_smooth() +
     theme_bw() + 
     facet_grid(ion~.) + 
     theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
-    ylim(c(vmin,vmax)) +
     xlab('logI, a.u.') +
     ylab(bquote(''^18*'O'/''^16*'O')) -> g_logI
 aa_data %>% 
-  ggplot(aes(x=ion, y=gamma, fill=file)) + geom_boxplot( outlier.color = NA, notch=T)  +
+  ggplot(aes(x=file, y=gamma, fill=group)) + geom_boxplot( outlier.color = NA, notch=T)  +
   theme_bw() +
-  ylab(bquote(''^18*'O'/''^16*'O')) + xlab("") -> g_bp
+  theme(legend.position = "")+ 
+  ylab(bquote(''^18*'O'/''^16*'O')) + xlab("") +
+  facet_wrap(~ion) -> g_bp
 aa_data %>% 
   filter(ion=='any') %>% 
-  ggplot(aes(x=gamma, fill=file)) + geom_density(alpha=0.3)  +
+  ggplot(aes(x=gamma, group=file, fill=group)) + geom_density(alpha=0.3)  +
   theme_bw() +
+  theme(legend.position = "")+ 
   xlab(bquote(''^18*'O'/''^16*'O')) + xlab("density") -> g_density
 
 #grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
@@ -479,27 +493,28 @@ aa_data %>%
   arrange(ion) -> res_group
 tlist <- list()
 for(aa in unique(res_group$ion)){
-  tlist[[aa]] <- res_group %>% 
-    filter(ion==aa) %>% 
+  tt <- res_group %>% 
+    filter(ion==aa)
+  tlist[[aa]] <- tt %>% 
     datatable() %>%  
     formatSignif(c('mean','median','wmean','sd'), 6) %>%  formatSignif(c('se'), 1) %>%
     formatStyle(
       'mean',
-      background = styleColorBar(res_group$mean, 'steelblue'),
+      background = styleColorBar(tt$mean, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
     ) %>%
     formatStyle(
       'median',
-      background = styleColorBar(res_group$median, 'steelblue'),
+      background = styleColorBar(tt$median, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
     ) %>%
     formatStyle(
       'wmean',
-      background = styleColorBar(res_group$wmean, 'steelblue'),
+      background = styleColorBar(tt$wmean, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
@@ -525,21 +540,21 @@ res %>%
     formatSignif(c('cv_mean','cv_median','cv_wmean'), 2) %>%
     formatStyle(
       'gmean',
-      background = styleColorBar(res_group$mean, 'steelblue'),
+      background = styleColorBar(res$gmean, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
     ) %>%
     formatStyle(
       'gmedian',
-      background = styleColorBar(res_group$median, 'steelblue'),
+      background = styleColorBar(res$gmedian, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'
     ) %>%
     formatStyle(
       'gwmean',
-      background = styleColorBar(res_group$wmean, 'steelblue'),
+      background = styleColorBar(res$gwmean, 'steelblue'),
       backgroundSize = '100% 90%',
       backgroundRepeat = 'no-repeat',
       backgroundPosition = 'center'

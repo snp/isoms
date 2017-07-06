@@ -49,48 +49,69 @@ summarizeImmoniums <- function(data=NA, files=NA, group=ifelse(is.na(data), 'fil
   spectra <- unique(data$seqNum)
   mono_spectra <- unique((data %>% filter(peak=='0'))$seqNum)
   nomono_spectra <- setdiff(spectra, mono_spectra)
-  require(multidplyr)
-  cl <- create_cluster()
-  cluster_library(cl, "dplyr")
-  set_default_cluster(cl)
-
+  gpb = dplyr::group_by
+  if('multidplyr' %in% installed.packages()){
+    library(multidplyr)
+    cl <- create_cluster()
+    cluster_library(cl, "dplyr")
+    set_default_cluster(cl)
+    gpb <- partition
+  }
+  # removing outliers
   data %>%
+    group_by(file, ion, peak) %>%
+    summarize(ir = median(isoratio), md = mad(isoratio), nhits=n(), mmin = ir-2*md, mmax=ir+2*md) %>% ungroup() -> ranges
+  data <- data %>%
+    ungroup()%>%
     filter(abs(masserror)<mass_tol) %>%
-#    group_by(group,file, seqNum, rt) %>%
-    partition(group,file, seqNum, rt) %>%
-    do({
-      dd <- .
-      res <- data.frame()
-      elements <- setdiff(unique(dd$peak), '0')
-      for(el in elements){
-        good_aa <- (dd %>% filter(peak==el & I >0) %>% distinct(ion))$ion
-        i0s <- (dd %>% filter(ion %in% good_aa & peak=='0'))$I
-        i1s <- (dd %>% filter(ion %in% good_aa & peak==el))$I
-        ns <- (dd %>% filter(ion %in% good_aa & peak==el))$n
+    left_join(ranges, by=c('file','ion','peak')) %>%
+    filter(nhits>10 & md/ir<0.5) %>%
+    filter(peak=='0' | (isoratio > mmin & isoratio < mmax))
+  if(file.exists(file.path(resultPath, "all_aa.RData"))){
+    message("all_aa.RData file exists, will not recalculate it.")
+    load(file.path(resultPath, "all_aa.RData"))
+  }else{
+    message("Computing 'any' ion: ")
+    data %>%
+      gpb(group,file, seqNum, rt) %>%
+      do({
+        dd <- .
+        res <- data.frame()
+        elements <- setdiff(unique(dd$peak), '0')
+        for(el in elements){
+          good_aa <- (dd %>% filter(peak==el & I >0) %>% distinct(ion))$ion
+          i0s <- (dd %>% filter(ion %in% good_aa & peak=='0'))$I
+          i1s <- (dd %>% filter(ion %in% good_aa & peak==el))$I
+          ns <- (dd %>% filter(ion %in% good_aa & peak==el))$n
 
-        rs <- i1s/i0s
-        i0s <- i0s[rs<1]
-        i1s <- i1s[rs<1]
-        ns <- ns[rs<1]
-        rs <- rs[rs<1]
-        rs_good <- (abs(rs-median(rs))<1.5*mad(rs))
-        r <- sum(i1s[rs_good]/ns[rs_good])/sum(i0s[rs_good])
-        if(!is.na(r))
-          res <- res %>% bind_rows(data.frame(peak=el, gamma=r, logI = log2(sum(i1s))))
-      }
-      if(nrow(res)>0){
-        # res$seqNum = dd$seqNum[[1]]
-        # res$rt = dd$rt[[1]]
-        res$ion = 'any'
-      }
-      res
-    }) %>% collect() %>%  ungroup() -> any_aa
-  data %>%
-    filter(abs(masserror)<mass_tol) %>%
-    filter(n>0 & I>0) %>%
-    mutate(gamma=isoratio/n, logI=log2(I)) %>%
-    select(group,file,peak, gamma, logI, seqNum, rt, ion) %>%
-    bind_rows(any_aa) %>% ungroup() -> all_aa
+          rs <- i1s/i0s
+          i0s <- i0s[rs<1]
+          i1s <- i1s[rs<1]
+          ns <- ns[rs<1]
+          rs <- rs[rs<1]
+          rs_good <- (abs(rs-median(rs))<1.5*mad(rs))
+          r <- sum(i1s[rs_good]/ns[rs_good])/sum(i0s[rs_good])
+          if(!is.na(r))
+            res <- res %>% bind_rows(data.frame(peak=el, gamma=r, logI = log2(sum(i1s))))
+        }
+        if(nrow(res)>0){
+          # res$seqNum = dd$seqNum[[1]]
+          # res$rt = dd$rt[[1]]
+          res$ion = 'any'
+        }
+        res
+      }) %>% collect() %>%  ungroup() -> any_aa
+
+    message("Puting ions together: ")
+
+    data %>%
+      filter(n>0 & I>0) %>%
+      mutate(gamma=isoratio/n, logI=log2(I)) %>%
+      select(group,file,peak, gamma, logI, seqNum, rt, ion) %>%
+      bind_rows(any_aa) %>% ungroup() -> all_aa
+    save(any_aa, all_aa, file=file.path(resultPath, "all_aa.RData"))
+  }
+  message("Grouping results and writing output tables: ")
 
   for(pp in unique(all_aa$peak)){
     vals <- (all_aa %>% filter(peak==pp))$gamma
@@ -156,5 +177,7 @@ summarizeImmoniums <- function(data=NA, files=NA, group=ifelse(is.na(data), 'fil
   }
 
   gg <- all_aa %>% distinct(group)
+  message("Rendering HTML report: ")
+  resultPath <- normalizePath(resultPath)
   rmarkdown::render(system.file("Rmd/isoMS_report.Rmd", package =getPackageName()), envir= sys.frame(sys.nframe()), output_file=file.path(resultPath,"isoMS_report.html"))
 }
