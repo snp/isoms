@@ -30,7 +30,7 @@ summarizeImmoniums <- function(data=NA, files=NA, group=ifelse(is.na(data), 'fil
   if (!dir.exists(resultPath))
     dir.create(resultPath, recursive = TRUE)
 
-  mass_tol <- 1e-4
+  mass_tol <- 3e-4
 
   if(!('file'  %in% names(data))){
     data <- data %>% mutate(file="file")
@@ -49,36 +49,80 @@ summarizeImmoniums <- function(data=NA, files=NA, group=ifelse(is.na(data), 'fil
   spectra <- unique(data$seqNum)
   mono_spectra <- unique((data %>% filter(peak=='0'))$seqNum)
   nomono_spectra <- setdiff(spectra, mono_spectra)
-  gpb = dplyr::group_by
-  if('multidplyr' %in% installed.packages()){
-    library(multidplyr)
-    cl <- create_cluster()
-    cluster_library(cl, "dplyr")
-    set_default_cluster(cl)
-    gpb <- partition
-  }
+
+
+
   # removing outliers
   data %>%
-    group_by(file, ion, peak) %>%
-    summarize(ir = median(isoratio), md = mad(isoratio), nhits=n(), mmin = ir-2*md, mmax=ir+2*md) %>% ungroup() -> ranges
+    group_by(file, peak, ion) %>%
+    summarize(gg = median(isoratio/n, na.rm=T),ir = median(isoratio, na.rm=T), md = mad(isoratio, na.rm=T), nhits=n(), mmin = ir-3*md, mmax=ir+3*md) -> ranges
+  ranges %>%
+    filter(nhits>10 & gg>0) %>%
+    summarize(mgg = median(gg, na.rm=T), madgg =mad(gg, na.rm=T), mmd = min(md)) -> rranges
+  ranges <- ranges %>%
+    ungroup() %>%
+    left_join(rranges, by=c('file','peak')) %>%
+#    mutate(isgood = peak=='0' | ((abs(gg-mgg) < 5*madgg)&(md < 4*mmd)&(md/ir<1))) %>%
+    mutate(isgood =  peak=='0' | ((md < 8*mmd)&(md/ir<1))) %>%
+    select(-mgg, -madgg, -mmd)
   data <- data %>%
     ungroup()%>%
     filter(abs(masserror)<mass_tol) %>%
     left_join(ranges, by=c('file','ion','peak')) %>%
-    filter(nhits>10 & md/ir<0.5) %>%
-    filter(peak=='0' | (isoratio > mmin & isoratio < mmax))
+    filter(!is.na(isgood)) %>%
+    filter(isgood & (peak=='0' | (isoratio > mmin & isoratio < mmax)))
+
+  message("Linear-model based method ")
+  data %>%
+    filter(n>0 & I>10) %>%
+    mutate(I0 = I/isoratio/100, I=I/n) %>%
+    group_by(peak, group, file, ion) %>%
+    do({
+      mm <- try(MASS::rlm(I~I0, data=.))
+      if(class(mm)!='try-error'){
+        tidy(mm)
+      }else{
+        data.frame()
+        }
+
+      }) -> lm_res_aa
+  lm_res_aa %>%write_csv(file.path(resultPath, sprintf("linearmodel_summary_aa.csv")))
+  data %>%
+    filter(n>0 & I>10) %>%
+    mutate(I0 = I/isoratio/100, I=I/n) %>%
+    group_by(peak, group, file) %>%
+    do({
+      mm <- try(MASS::rlm(I~I0+ion, data=., method='MM'))
+      if(class(mm)!='try-error'){
+        tidy(mm)
+      }else{
+        data.frame()
+      }
+    }) -> lm_res
+  lm_res %>%write_csv(file.path(resultPath, sprintf("linearmodel_summary.csv")))
+
+
   if(file.exists(file.path(resultPath, "all_aa.RData"))){
     message("all_aa.RData file exists, will not recalculate it.")
     load(file.path(resultPath, "all_aa.RData"))
   }else{
     message("Computing 'any' ion: ")
+    gpb = dplyr::group_by
+    if('multidplyr' %in% installed.packages()){
+      library(multidplyr)
+      cl <- create_cluster()
+      cluster_library(cl, "dplyr")
+      set_default_cluster(cl)
+      gpb <- partition
+    }
+
     data %>%
       gpb(group,file, seqNum, rt) %>%
       do({
         dd <- .
         res <- data.frame()
-        elements <- setdiff(unique(dd$peak), '0')
-        for(el in elements){
+        peaks <- setdiff(unique(dd$peak), '0')
+        for(el in peaks){
           good_aa <- (dd %>% filter(peak==el & I >0) %>% distinct(ion))$ion
           i0s <- (dd %>% filter(ion %in% good_aa & peak=='0'))$I
           i1s <- (dd %>% filter(ion %in% good_aa & peak==el))$I
@@ -129,7 +173,7 @@ summarizeImmoniums <- function(data=NA, files=NA, group=ifelse(is.na(data), 'fil
     aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% arrange(md))$ion)
     aa_data %>%
       group_by(ion, group, file) %>%
-      summarize(mean=mean(gamma)*100, median=median(gamma)*100, wmean = weighted.mean(gamma, logI)*100, sd = sd(gamma)*100, se = sd(gamma)/sqrt(n())*100, n=n()) %>%
+      summarize(mean=mean(gamma)*100, median=median(gamma)*100, wmean = weighted.mean(gamma, logI)*100, sd = sd(gamma)*100, se = sd(gamma)/sqrt(n())*100, n=n(), logI=median(logI)) %>%
       mutate(CV = se/wmean*100) %>%
       arrange(ion) -> res_f
     res_f %>% write_csv(file.path(resultPath, sprintf("file_summary_%s.csv", pp)))
@@ -175,6 +219,198 @@ summarizeImmoniums <- function(data=NA, files=NA, group=ifelse(is.na(data), 'fil
       write_csv(file.path(resultPath, sprintf("narrow_group_summary.csv")))
 
   }
+
+
+
+  gg <- all_aa %>% distinct(group)
+  message("Rendering HTML report: ")
+  resultPath <- normalizePath(resultPath)
+  rmarkdown::render(system.file("Rmd/isoMS_report.Rmd", package =getPackageName()), envir= sys.frame(sys.nframe()), output_file=file.path(resultPath,"isoMS_report.html"))
+}
+
+summarizeImmoniums2 <- function(data=NA, files=NA, group=ifelse(is.na(data), 'file', NA), resultPath="./isoMS_result"){
+  if(is.na(data)){
+    if(class(files) == "character")
+      data <- bind_rows(
+        lapply(files, function(f){
+          if(file.exists(f))
+            read_csv(f) %>% mutate(file=f)
+          else
+            data.frame()
+        })
+      )
+  }
+  if(nrow(data)<2){
+    warning("You have to provide either data frame or vecor of file names to proceed")
+    return(0)
+  }
+  if (!dir.exists(resultPath))
+    dir.create(resultPath, recursive = TRUE)
+
+  mass_tol <- 3e-4
+
+  if(!('file'  %in% names(data))){
+    data <- data %>% mutate(file="file")
+  }
+  if(is.na(group))
+    group='group'
+  if(!(group  %in% names(data))){
+    data <- data %>% mutate(group="group")
+  }else if(group!='group'){
+    data <- data %>% mutate_(group=sprintf("`%s`", group))
+  }
+  message("Files to process: ")
+  print(unique(data$file))
+  message("Groups to process: ")
+  print(unique(data$group))
+
+  # removing outliers
+  data %>%
+    group_by(file, element, ion) %>%
+    summarize(gg = median(estimate/n, na.rm=T),ir = median(estimate, na.rm=T), md = mad(estimate, na.rm=T), nhits=n(), mmin = ir-3*md, mmax=ir+3*md) -> ranges
+  ranges %>%
+    filter(nhits>10 & gg>0) %>%
+    summarize(mgg = median(gg, na.rm=T), madgg =mad(gg, na.rm=T), mmd = min(md)) -> rranges
+  ranges <- ranges %>%
+    ungroup() %>%
+    left_join(rranges, by=c('file','element')) %>%
+#    mutate(isgood = ((abs(gg-mgg) < 5*madgg)&(md < 4*mmd)&(md/ir<1))) %>%
+    mutate(isgood = ((abs(log2(gg/mgg)) < 2)&(md < 6*mmd)&(md/ir<1))) %>%
+    select(-mgg, -madgg, -mmd)
+  data <- data %>%
+    ungroup()%>%
+    left_join(ranges, by=c('file','ion','element')) %>%
+    filter(!is.na(isgood)) %>%
+    filter(isgood & (estimate > mmin & estimate < mmax))
+
+  message("Linear-model based method ")
+  data %>%
+    filter(n>0 & I>10) %>%
+    mutate(I0 = I/100, I=I0*estimate/n*100) %>%
+    group_by(element, group, file, ion) %>%
+    do({
+      mm <- try(MASS::rlm(I~I0, data=.))
+      if(class(mm)!='try-error'){
+        tidy(mm)
+      }else{
+        data.frame()
+      }
+
+    })  %>%
+    mutate(peak=element) %>%
+    mutate(peak=sub("C","13C",peak)) %>%
+    mutate(peak=sub("N","15N",peak)) %>%
+    mutate(peak=sub("H","2H",peak))-> lm_res_aa
+  lm_res_aa %>%write_csv(file.path(resultPath, sprintf("linearmodel2_summary_aa.csv")))
+  data %>%
+    filter(n>0 & I>10) %>%
+    mutate(I0 = I/100, I=I0*estimate/n*100) %>%
+    group_by(element, group, file) %>%
+    do({
+      mm <- try(MASS::rlm(I~I0+ion, data=., method='MM'))
+      if(class(mm)!='try-error'){
+        tidy(mm)
+      }else{
+        data.frame()
+      }
+    })  %>%
+    mutate(peak=element) %>%
+    mutate(peak=sub("C","13C",peak)) %>%
+    mutate(peak=sub("N","15N",peak)) %>%
+    mutate(peak=sub("H","2H",peak))-> lm_res
+  lm_res %>%write_csv(file.path(resultPath, sprintf("linearmodel2_summary.csv")))
+
+
+  if(file.exists(file.path(resultPath, "all_aa2.RData"))){
+    message("all_aa.RData file exists, will not recalculate it.")
+    load(file.path(resultPath, "all_aa2.RData"))
+  }else{
+    message("Computing 'any' ion: ")
+    gpb = dplyr::group_by
+    if('multidplyr' %in% installed.packages()){
+      library(multidplyr)
+      cl <- create_cluster()
+      cluster_library(cl, "dplyr")
+      set_default_cluster(cl)
+      gpb <- partition
+    }
+
+    data %>%
+      gpb(group,file, seqNum, rt) %>%
+      do({
+        dd <- .
+        res <- data.frame()
+        elements <- setdiff(unique(dd$element), '0')
+        for(el in elements){
+          good_aa <- (dd %>% filter(element==el & I >0) %>% distinct(ion))$ion
+          i0s <- (dd %>% filter(ion %in% good_aa & element==el))$I
+          i1s <- (dd %>% filter(ion %in% good_aa & element==el) %>% mutate(xx=I*estimate))$xx
+          ns <- (dd %>% filter(ion %in% good_aa & element==el))$n
+
+          rs <- i1s/i0s
+          i0s <- i0s[rs<1]
+          i1s <- i1s[rs<1]
+          ns <- ns[rs<1]
+          rs <- rs[rs<1]
+          rs_good <- (abs(rs-median(rs))<1.5*mad(rs))
+          r <- sum(i1s[rs_good]/ns[rs_good])/sum(i0s[rs_good])
+          if(!is.na(r))
+            res <- res %>% bind_rows(data.frame(element=el, gamma=r, logI = log2(sum(i1s))))
+        }
+        if(nrow(res)>0){
+          # res$seqNum = dd$seqNum[[1]]
+          # res$rt = dd$rt[[1]]
+          res$ion = 'any'
+        }
+        res
+      }) %>% collect() %>%  ungroup() -> any_aa
+
+    message("Puting ions together: ")
+
+    data %>%
+      filter(n>0 & I>0) %>%
+      mutate(gamma=estimate/n, logI=log2(I)) %>%
+      select(group,file,element, gamma, logI, seqNum, rt, ion) %>%
+      bind_rows(any_aa) %>% ungroup() -> all_aa
+    save(any_aa, all_aa, file=file.path(resultPath, "all_aa2.RData"))
+  }
+  message("Grouping results and writing output tables: ")
+
+  for(pp in unique(all_aa$element)){
+    vals <- (all_aa %>% filter(element==pp))$gamma
+    vmin <- quantile(vals, 0.05)
+    vmax <- quantile(vals, 0.95)
+    all_aa %>%
+      filter(element==pp) %>%
+      group_by(ion, file ) %>%
+      summarize(m = median(gamma), md = mad(gamma)) -> mmad
+    aa_data <- all_aa %>%
+      filter(element==pp) %>%
+      left_join(mmad %>% ungroup(), by=c('ion','file')) %>%
+      filter(md>0) %>%
+      filter(gamma>(m-3*md) & gamma < (m+3*md))
+    aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% arrange(md))$ion)
+    aa_data %>%
+      group_by(ion, group, file) %>%
+      summarize(mean=mean(gamma)*100, median=median(gamma)*100, wmean = weighted.mean(gamma, logI)*100, sd = sd(gamma)*100, se = sd(gamma)/sqrt(n())*100, n=n()) %>%
+      mutate(CV = se/wmean*100) %>%
+      arrange(ion) -> res_f
+    res_f %>% write_csv(file.path(resultPath, sprintf("file_summary_%s.csv", pp)))
+    res_f %>%
+      summarize(gmean=mean(mean), gmedian=mean(median), gwmean=mean(wmean), sd_mean=sd(mean), sd_median=sd(median), sd_wmean=sd(wmean), n=n()) %>%
+      mutate(
+        cv_mean = sd_mean/gmean/sqrt(n)*100,
+        cv_median = sd_median/gmedian/sqrt(n)*100,
+        cv_wmean = sd_wmean/gwmean/sqrt(n)*100
+      ) %>%
+      arrange(cv_wmean) %>%
+      write_csv(file.path(resultPath, sprintf("group_summary2_%s.csv", pp)))
+  }
+  all_aa <- all_aa %>%
+    mutate(peak=element) %>%
+    mutate(peak=sub("C","13C",peak)) %>%
+    mutate(peak=sub("N","15N",peak)) %>%
+    mutate(peak=sub("H","2H",peak))
 
   gg <- all_aa %>% distinct(group)
   message("Rendering HTML report: ")

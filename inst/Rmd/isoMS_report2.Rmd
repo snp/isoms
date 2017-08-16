@@ -701,8 +701,7 @@ res_group %>%
 #       backgroundPosition = 'center'
 #     )
 # }
-# htmltools::tagList(tlist)
-}
+# htmltools::tagList(tlist)}
 ```
 
 ### Group summary

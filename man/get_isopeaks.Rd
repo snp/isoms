@@ -5,7 +5,7 @@
 \title{Isotopic peaks fitting for specified m/z}
 \usage{
 get_isopeaks(ss, mz, width = 0.002, npoint = 10, tol = 0.01,
-  fixSigma = T)
+  fixSigma = T, plot = F)
 }
 \arguments{
 \item{ss}{Spectrum formatted as numeric matrix with 2 columns (m/z and i),
