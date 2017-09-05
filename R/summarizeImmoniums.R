@@ -30,6 +30,15 @@ summarizeImmoniums <- function(data=NA, files=NA, group=ifelse(is.na(data), 'fil
   if (!dir.exists(resultPath))
     dir.create(resultPath, recursive = TRUE)
 
+  if('totIonCurrent' %in% names(data)){
+    message("TIC adjustment")
+    data %>%
+      group_by(file) %>%
+      summarize(minTIC = min(totIonCurrent, na.rm=T), maxTIC=max(totIonCurrent, na.rm=T)) %>%
+      summarize(low=max(c(2e7,minTIC)), high=min(maxTIC)) -> TIClimits
+    data <- data %>%
+      filter(totIonCurrent>TIClimits$low & totIonCurrent< TIClimits$high)
+  }
   mass_tol <- 3e-4
 
   if(!('file'  %in% names(data))){
@@ -247,6 +256,15 @@ summarizeImmoniums2 <- function(data=NA, files=NA, group=ifelse(is.na(data), 'fi
   if (!dir.exists(resultPath))
     dir.create(resultPath, recursive = TRUE)
 
+  if('totIonCurrent' %in% names(data)){
+    message("TIC adjustment")
+    data %>%
+      group_by(file) %>%
+      summarize(minTIC = min(totIonCurrent, na.rm=T), maxTIC=max(totIonCurrent, na.rm=T)) %>%
+      summarize(low=max(c(2e7,minTIC)), high=min(maxTIC)) -> TIClimits
+    data <- data %>%
+      filter(totIonCurrent>TIClimits$low & totIonCurrent< TIClimits$high)
+  }
   mass_tol <- 3e-4
 
   if(!('file'  %in% names(data))){

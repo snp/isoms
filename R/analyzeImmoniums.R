@@ -29,6 +29,9 @@ analyze_immoniums <- function(file, width=0.001, ions=immoniumIons, fixSigma=T){
               cres %>%
                 mutate(
                   rt = dd$retentionTime[[1]],
+                  tic = dd$totIonCurrent[[1]],
+                  bpI = dd$basePeakIntensity[[1]],
+                  bpMZ = dd$basePeakMZ[[1]],
                   ion=ion_)
             )
       }
@@ -68,6 +71,9 @@ analyze_immoniums2 <- function(file, width=0.0015, ions=immoniumIons){
               cres %>%
                 mutate(
                   rt = dd$retentionTime[[1]],
+                  tic = dd$totIonCurrent[[1]],
+                  bpI = dd$basePeakIntensity[[1]],
+                  bpMZ = dd$basePeakMZ[[1]],
                   ion=ion_)
             )
       }

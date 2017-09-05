@@ -1,0 +1,139 @@
+---
+title: "IRMS protocol"
+author: "Alexey L. Chernobrovkin"
+date: "8/31/2017"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+This protocol is designed to perform isotopic ratio analysis of biological
+samples for four elements --- C, N, H and O. It can be applied to analyze cell
+cultures, bacteria, tissues, biological fluids etc. Required sample amount is 
+normally less then 100 ug of protein.
+
+## Preparation of cell lysates (Timing 1 hr)
+
+1. Add Lysis buffer (LB) to each pellet (8M Urea, 1% SDS, 50mM Tris pH 8.5, 
+Complete protease inhibitor and PhoStop from Roche).
+Note: LB containing urea should always be made fresh. 
+The target protein concentration in the lysate is 0.5-8 mg/mL.
+
+2. Vortex for mammalian cell pellets, mechanical grind for tissue and plants,
+sonicate for yeast or bacterial cells
+
+## First micro-BCA assay (Timing 2 hr)
+
+3. Micro-BCA kit from Pierce
+
+4. Each sample should be done in triplicate, standards done in duplicate
+
+5. Dilute samples with PBS
+
+6. -25 parts reagent A (5 mL), 24 parts reagent B (4.8 mL), and 1 part reagent C (0.2 mL)
+
+7. 150 uL sample + 150 uL reagent ABC
+
+8. Incubate for 1-2 hr at 37C
+
+9. Read samples using a plate reader
+
+Notes: (1) BCA with lysates over estimates the amount of protein. 
+For example, if the BCA from the lysate indicates 1 mg of protein 
+the actual amount is closer to 0.5mg. 
+(2) Perform BCA on lysates before the reduction/alkylation due to interference of DTT with the BCA assay.
+
+## Protein reduction and alkylation (Timing 2 hrs)
+
+10. Add DTT from a 1 M stock to a final 5 mM final concentration and incubate for 1 hr at 25 oC to reduce disulfide bonds.
+
+11. Add iodoacetamide from a 0.5 M stock to a 15 mM final concentration. Incubate for 1 hr at 25 oC in the dark to alkylate reduced cysteines.
+
+12. Quench excess iodoacetamide by adding an additional 10 mM DTT from a 1M stock. Note: 1M DTT stocks can be stored at -20C but IAA should be made fresh each day and stored in the dark
+
+## Protein precipitation using methanol/chloroform (Timing 2 hrs)
+
+13. Precipitate up to 100 ug of protein per sample
+
+14. Add four volumes of methanol to cell lysate and vortex 15. Add one volume of chloroform and vortex
+
+16. Add three volume of water and vortex and centrifuge
+Note: The solution should appear milky, this indicates protein precipitation. If the solution does not appear milky after the initial 3 volumes of water continue adding additional volumes of water until the solution becomes milky
+
+17. Remove the tubes from the centrifuge and look for the formation of a protein pellet at the interphase between the chloroform (bottom) and aqueous (top) layers
+Note: ~100 μg of protein is enough to see a pellet at the interphase
+
+18. Aspirate the aqueous layer and add one volume of methanol to wash the protein pellet. Vortex the pellet and centrifuge.
+
+19. Remove supernatant
+
+20. Add one volume of ice cold methanol, vortex, and centrifuge.
+
+21. Remove supernatant
+
+22. Air dry the pellet (do not let the pellet completely dry otherwise it is very difficult to get
+back into solution.)
+
+## Tryptic digestion
+
+23. Dissolve dry protein pellet in 8M urea + 50 mM Tris pH 8.5.
+
+24. Dilute with  50 mM Tris pH 8.5 (final urea concentration will be 1M)
+
+25. Add Trypsin (1:100; Trypsin:Protein) and incubate at 37C overnight
+
+26. Quench the reaction by adding TFA to a final concentration of 0.5%
+
+27. Centrifuge at 4 oC, 15k for 10min, discard pellet and save supernatant
+
+## Peptide desalting  (Timing 1-3 hr)
+
+28. Peptides were desalted using SepPak
+
+29. Wash the column with 100% methanol – 2 CV
+
+30. Followed by a second wash of 50% acetonitrile + 0.1% TFA – 2 CV
+
+31. Equilibrate with 0.1% TFA – 3 CV
+
+32. Load peptide sample in 0.5% TFA (from step 24)
+
+33. Wash/desalt using 0.1% TFA – 3 CV
+
+34. Elution - 80% ACN + 0.1% FA – 2 CV, collect eluate in low bind eppendorf tubes 37. Speedvac to dryness
+
+
+## Second micro-BCA assay (peptide quant) (Timing 2 hr)
+
+36. Resuspend samples in 100 μL buffer A (based on 100 ug protein). 
+Second micro BCA this is to determine the amount of peptides. 
+This BCA is more accurate than the 1st.
+
+## LC-MS analyzis of immonium ions
+
+37. Resuspend 10 ug of peptides in 20 ul of buffer A.
+
+38. Inject 2 ul of each sample onto the LC-MS system (using Immonium method for 
+data aquisition). Make sure instrument is in full-profile mode.
+
+## Raw to mzML data conversion (1-2h per file)
+
+39. Use MSConvert sofware to convert raw files into mzML.
+
+## Data analyzis using isoms R-package (1-2h per file)
+
+40. Copy mzML files into one local folder on the computer.
+
+41. Copy batchProcess.R file into the same folder with mzML files.
+
+42. Open terminal window (console), navigate to your directury using cd command.
+
+43. Launch analysis by executing command `Rscript batchProcess.R`.
+
+44. When the program is finished html report is generated in the isoMS folder.
