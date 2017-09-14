@@ -30,14 +30,18 @@ summarizeImmoniums <- function(data=NA, files=NA, group=ifelse(is.na(data), 'fil
   if (!dir.exists(resultPath))
     dir.create(resultPath, recursive = TRUE)
 
-  if('totIonCurrent' %in% names(data)){
+  if('totIonCurrent' %in% names(data))
+    data <- data %>% mutate(tic=totIonCurrent)
+  if('tic' %in% names(data)){
     message("TIC adjustment")
     data %>%
       group_by(file) %>%
-      summarize(minTIC = min(totIonCurrent, na.rm=T), maxTIC=max(totIonCurrent, na.rm=T)) %>%
+      summarize(minTIC = min(tic, na.rm=T), maxTIC=max(tic, na.rm=T)) %>%
       summarize(low=max(c(2e7,minTIC)), high=min(maxTIC)) -> TIClimits
     data <- data %>%
-      filter(totIonCurrent>TIClimits$low & totIonCurrent< TIClimits$high)
+      filter(tic>TIClimits$low & tic< TIClimits$high)
+  }else{
+    data$tic <- 10
   }
   mass_tol <- 3e-4
 
@@ -129,6 +133,7 @@ summarizeImmoniums <- function(data=NA, files=NA, group=ifelse(is.na(data), 'fil
       gpb(group,file, seqNum, rt) %>%
       do({
         dd <- .
+        tic_ <- dd$tic[[1]]
         res <- data.frame()
         peaks <- setdiff(unique(dd$peak), '0')
         for(el in peaks){
@@ -145,7 +150,7 @@ summarizeImmoniums <- function(data=NA, files=NA, group=ifelse(is.na(data), 'fil
           rs_good <- (abs(rs-median(rs))<1.5*mad(rs))
           r <- sum(i1s[rs_good]/ns[rs_good])/sum(i0s[rs_good])
           if(!is.na(r))
-            res <- res %>% bind_rows(data.frame(peak=el, gamma=r, logI = log2(sum(i1s))))
+            res <- res %>% bind_rows(data.frame(peak=el, gamma=r, logI = log2(sum(i1s)), tic=tic_))
         }
         if(nrow(res)>0){
           # res$seqNum = dd$seqNum[[1]]
@@ -160,7 +165,7 @@ summarizeImmoniums <- function(data=NA, files=NA, group=ifelse(is.na(data), 'fil
     data %>%
       filter(n>0 & I>0) %>%
       mutate(gamma=isoratio/n, logI=log2(I)) %>%
-      select(group,file,peak, gamma, logI, seqNum, rt, ion) %>%
+      select(group,file,peak, gamma, logI, tic, seqNum, rt, ion) %>%
       bind_rows(any_aa) %>% ungroup() -> all_aa
     save(any_aa, all_aa, file=file.path(resultPath, "all_aa.RData"))
   }

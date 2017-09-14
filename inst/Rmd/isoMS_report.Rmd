@@ -120,7 +120,14 @@ print(g_density)
 ```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12}
 aa_data %>% 
   group_by(ion, group,file) %>% 
-  summarize(mean=mean(gamma)*100, median=median(gamma)*100, wmean = weighted.mean(gamma, logI)*100, sd = sd(gamma)*100, se = sd(gamma)/sqrt(n())*100, n=n()) %>% 
+  summarize(
+    mean=mean(gamma)*100, 
+    median=median(gamma)*100, 
+    wmean = weighted.mean(gamma, logI)*100, 
+    sd = sd(gamma)*100, 
+    se = sd(gamma)/sqrt(n())*100, 
+    n=n(), 
+    tic=median(log10(tic))) %>% 
   arrange(ion) -> res_group
 res_group %>% 
   ungroup() %>% 
@@ -129,7 +136,7 @@ res_group %>%
                                         dom = 'Bfrtip',
                                         buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
   )) %>%
-  formatSignif(c('mean','median','wmean','sd'), 6) %>%  formatSignif(c('se'), 1) %>%
+  formatSignif(c('mean','median','wmean','sd'), 6) %>%  formatSignif(c('se','tic'), 2) %>%
   formatStyle(
     'mean',
     background = styleColorBar(res_group$mean, 'azure'),
@@ -187,6 +194,7 @@ res_group %>%
 # htmltools::tagList(tlist)
 ```
 
+
 ### Group summary
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
@@ -227,6 +235,7 @@ res %>%
       backgroundPosition = 'center'
     )
 ```
+
 
 
 
@@ -294,7 +303,14 @@ print(g_density)
 ```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12}
 aa_data %>% 
   group_by(ion, group,file) %>% 
-  summarize(mean=mean(gamma)*100, median=median(gamma)*100, wmean = weighted.mean(gamma, logI)*100, sd = sd(gamma)*100, se = sd(gamma)/sqrt(n())*100, n=n()) %>% 
+  summarize(
+    mean=mean(gamma)*100, 
+    median=median(gamma)*100, 
+    wmean = weighted.mean(gamma, logI)*100, 
+    sd = sd(gamma)*100, 
+    se = sd(gamma)/sqrt(n())*100, 
+    n=n(), 
+    tic=median(log10(tic))) %>% 
   arrange(ion) -> res_group
 res_group %>% 
   ungroup() %>% 
@@ -303,7 +319,7 @@ res_group %>%
                                         dom = 'Bfrtip',
                                         buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
   )) %>%
-  formatSignif(c('mean','median','wmean','sd'), 6) %>%  formatSignif(c('se'), 1) %>%
+  formatSignif(c('mean','median','wmean','sd'), 6) %>%  formatSignif(c('se','tic'), 2) %>%
   formatStyle(
     'mean',
     background = styleColorBar(res_group$mean, 'azure'),
@@ -464,7 +480,14 @@ print(g_density)
 ```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12}
 aa_data %>% 
   group_by(ion, group,file) %>% 
-  summarize(mean=mean(gamma)*100, median=median(gamma)*100, wmean = weighted.mean(gamma, logI)*100, sd = sd(gamma)*100, se = sd(gamma)/sqrt(n())*100, n=n()) %>% 
+  summarize(
+    mean=mean(gamma)*100, 
+    median=median(gamma)*100, 
+    wmean = weighted.mean(gamma, logI)*100, 
+    sd = sd(gamma)*100, 
+    se = sd(gamma)/sqrt(n())*100, 
+    n=n(), 
+    tic=median(log10(tic))) %>% 
   arrange(ion) -> res_group
 res_group %>% 
   ungroup() %>% 
@@ -473,7 +496,7 @@ res_group %>%
                                         dom = 'Bfrtip',
                                         buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
   )) %>%
-  formatSignif(c('mean','median','wmean','sd'), 6) %>%  formatSignif(c('se'), 1) %>%
+  formatSignif(c('mean','median','wmean','sd'), 6) %>%  formatSignif(c('se','tic'), 2) %>%
   formatStyle(
     'mean',
     background = styleColorBar(res_group$mean, 'azure'),
@@ -637,7 +660,14 @@ print(g_density)}
 if(length(vals)>0){
 aa_data %>% 
   group_by(ion, group,file) %>% 
-  summarize(mean=mean(gamma)*100, median=median(gamma)*100, wmean = weighted.mean(gamma, logI)*100, sd = sd(gamma)*100, se = sd(gamma)/sqrt(n())*100, n=n()) %>% 
+  summarize(
+    mean=mean(gamma)*100, 
+    median=median(gamma)*100, 
+    wmean = weighted.mean(gamma, logI)*100, 
+    sd = sd(gamma)*100, 
+    se = sd(gamma)/sqrt(n())*100, 
+    n=n(), 
+    tic=median(log10(tic))) %>% 
   arrange(ion) -> res_group
 res_group %>% 
   ungroup() %>% 
@@ -646,7 +676,7 @@ res_group %>%
                                         dom = 'Bfrtip',
                                         buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
   )) %>%
-  formatSignif(c('mean','median','wmean','sd'), 6) %>%  formatSignif(c('se'), 1) %>%
+  formatSignif(c('mean','median','wmean','sd'), 6) %>%  formatSignif(c('se','tic'), 2) %>%
   formatStyle(
     'mean',
     background = styleColorBar(res_group$mean, 'azure'),
