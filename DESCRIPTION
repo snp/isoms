@@ -18,7 +18,8 @@ Depends:
     mzR,
     readr,
     broom,
-    parallel
+    parallel,
+    DT
 Imports:
     gridExtra,
     knitr,
