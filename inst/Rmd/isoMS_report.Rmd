@@ -74,7 +74,7 @@ aa_data <- all_aa %>%
   filter(peak=='13C') %>% 
   left_join(mmad, by=c('ion','file')) %>% 
   filter(gamma>(m-3*md) & gamma < (m+3*md))
-aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% filter(md>0) %>% arrange(md))$ion)
+aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=mean(md)) %>% filter(md>0) %>% arrange(md))$ion)
 
 ion_plot <- levels(aa_data$ion)[1:4]
 aa_data %>% 
@@ -126,10 +126,10 @@ aa_data %>%
     sd = sd(gamma)*100, 
     se = sd(gamma)/sqrt(n())*100, 
     n=n(), 
-    tic=median(log10(tic))) %>% 
+    tic=median(log10(tic),na.rm=T)) %>% 
   arrange(tic) %>% 
   ggplot(aes(x=tic, y=mean,  color=group)) +
-    geom_point(size=3) + geom_smooth() + geom_errorbar(aes(ymin=mean-3*se, ymax=mean+3*se))  +
+    geom_point(size=3) + geom_smooth(method = "lm", se=F)+ geom_errorbar(aes(ymin=mean-3*se, ymax=mean+3*se),size=2)  +
     theme_bw() + facet_grid(.~ion, scales='free') -> g_tic
 
 #grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
@@ -140,6 +140,7 @@ print(g_bp)
 print(g_density)
 print(g_tic)
 ```
+
 
 ### File summary
 
@@ -153,7 +154,7 @@ aa_data %>%
     sd = sd(gamma)*100, 
     se = sd(gamma)/sqrt(n())*100, 
     n=n(), 
-    tic=median(log10(tic))) %>% 
+    tic=median(log10(tic), na.rm=T)) %>% 
   arrange(ion) -> res_group
 res_group %>% 
   ungroup() %>% 
@@ -329,10 +330,10 @@ aa_data %>%
     sd = sd(gamma)*100, 
     se = sd(gamma)/sqrt(n())*100, 
     n=n(), 
-    tic=median(log10(tic))) %>% 
+    tic=median(log10(tic),na.rm=T)) %>% 
   arrange(tic) %>% 
   ggplot(aes(x=tic, y=mean,  color=group)) +
-    geom_point(size=3) + geom_smooth() + geom_errorbar(aes(ymin=mean-3*se, ymax=mean+3*se))  +
+    geom_point(size=3) + geom_smooth(method = "lm", se=F)+ geom_errorbar(aes(ymin=mean-3*se, ymax=mean+3*se),size=2)  +
     theme_bw() + facet_grid(.~ion, scales='free') -> g_tic
 
 #grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
@@ -357,7 +358,7 @@ aa_data %>%
     sd = sd(gamma)*100, 
     se = sd(gamma)/sqrt(n())*100, 
     n=n(), 
-    tic=median(log10(tic))) %>% 
+    tic=median(log10(tic), na.rm=T)) %>% 
   arrange(ion) -> res_group
 res_group %>% 
   ungroup() %>% 
@@ -526,10 +527,10 @@ aa_data %>%
     sd = sd(gamma)*100, 
     se = sd(gamma)/sqrt(n())*100, 
     n=n(), 
-    tic=median(log10(tic))) %>% 
+    tic=median(log10(tic),na.rm=T)) %>% 
   arrange(tic) %>% 
   ggplot(aes(x=tic, y=mean,  color=group)) +
-    geom_point(size=3) + geom_smooth() + geom_errorbar(aes(ymin=mean-3*se, ymax=mean+3*se))  +
+    geom_point(size=3) + geom_smooth(method = "lm", se=F)+ geom_errorbar(aes(ymin=mean-3*se, ymax=mean+3*se),size=2)  +
     theme_bw() + facet_grid(.~ion, scales='free') -> g_tic
 
 #grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
@@ -554,7 +555,7 @@ aa_data %>%
     sd = sd(gamma)*100, 
     se = sd(gamma)/sqrt(n())*100, 
     n=n(), 
-    tic=median(log10(tic))) %>% 
+    tic=median(log10(tic), na.rm=T)) %>% 
   arrange(ion) -> res_group
 res_group %>% 
   ungroup() %>% 
@@ -725,12 +726,11 @@ aa_data %>%
     sd = sd(gamma)*100, 
     se = sd(gamma)/sqrt(n())*100, 
     n=n(), 
-    tic=median(log10(tic))) %>% 
+    tic=median(log10(tic),na.rm=T)) %>% 
   arrange(tic) %>% 
   ggplot(aes(x=tic, y=mean,  color=group)) +
-    geom_point(size=3) + geom_smooth() + geom_errorbar(aes(ymin=mean-3*se, ymax=mean+3*se))  +
+    geom_point(size=3) + geom_smooth(method = "lm", se=F)+ geom_errorbar(aes(ymin=mean-3*se, ymax=mean+3*se),size=2)  +
     theme_bw() + facet_grid(.~ion, scales='free') -> g_tic
-
 #grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
 
 print(g_rt)
@@ -755,7 +755,7 @@ aa_data %>%
     sd = sd(gamma)*100, 
     se = sd(gamma)/sqrt(n())*100, 
     n=n(), 
-    tic=median(log10(tic))) %>% 
+    tic=median(log10(tic), na.rm=T)) %>% 
   arrange(ion) -> res_group
 res_group %>% 
   ungroup() %>% 
