@@ -87,11 +87,11 @@ summarizeImmoniums <- function(data=NA, files=NA, group=ifelse(is.na(data), 'fil
 
   message("Linear-model based method ")
   data %>%
-    filter(n>0 & I>10) %>%
-    mutate(I0 = I/isoratio/100, I=I/n) %>%
+    filter(n>0 & I>10 & isoratio>0&tic>0) %>%
+    mutate(I0 = I/isoratio/100, I=I/n,ltic=log10(tic)) %>%
     group_by(peak, group, file, ion) %>%
     do({
-      mm <- try(MASS::rlm(I~I0, data=.))
+      mm <- try(MASS::rlm(I~I0+ltic, data=.))
       if(class(mm)!='try-error'){
         tidy(mm)
       }else{
@@ -101,11 +101,11 @@ summarizeImmoniums <- function(data=NA, files=NA, group=ifelse(is.na(data), 'fil
       }) -> lm_res_aa
   lm_res_aa %>%write_csv(file.path(resultPath, sprintf("linearmodel_summary_aa.csv")))
   data %>%
-    filter(n>0 & I>10) %>%
-    mutate(I0 = I/isoratio/100, I=I/n) %>%
+    filter(n>0 & I>10 & tic>0 & isoratio>0) %>%
+    mutate(I0 = I/isoratio/100, I=I/n, ltic=log10(tic)) %>%
     group_by(peak, group, file) %>%
     do({
-      mm <- try(MASS::rlm(I~I0+ion, data=., method='MM'))
+      mm <- try(MASS::rlm(I~I0+ion + ltic, data=., method='MM'))
       if(class(mm)!='try-error'){
         tidy(mm)
       }else{
