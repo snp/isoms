@@ -18,7 +18,8 @@ processExperimentDesign <- function(){
       if("totIonCurrent" %in% names(fd))
         fd <- fd %>% mutate(tic=totIonCurrent) %>% select(-totIonCurrent)
       fd %>%
-      mutate(file=xx$File, group=xx$Sample, loading=xx$Loading)
+      mutate(file=xx$File, group=xx$Sample, loading=xx$Loading) %>%
+        filter(rt > (xx$Start*60) & (rt < xx$End * 60))
     }) -> data_
   summarizeImmoniums(
     data = data_,
