@@ -37,6 +37,7 @@ mzMLtoCSV <- function(pattern="*.mzML"){
           group_by(file) %>%
           summarise(nScans = length(unique(seqNum)))
       }))
+    stopCluster(cl)
   }else{
     result <- bind_rows(mclapply(
       ff, function(ii){
