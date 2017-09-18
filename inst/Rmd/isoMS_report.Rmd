@@ -31,7 +31,9 @@ require(knitr)
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 lm_res %>% 
-  select(peak, group, file, term, estimate, std.error) %>% 
+  filter(term=='I0') %>% 
+  select(peak, group, file, estimate, std.error) %>% 
+  arrange(peak, group, file) %>% 
   datatable(extensions = 'Buttons', options = list(
                                     dom = 'Bfrtip',
                                     buttons = c('copy', 'csv', 'excel', 'pdf', 'print'))) %>%
@@ -43,8 +45,9 @@ lm_res %>%
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 lm_res %>% 
-  select(peak, group, file, term, estimate, std.error) %>% 
-  group_by(peak, group, term) %>% 
+  filter(term=='I0') %>% 
+  select(peak, group, file, estimate, std.error) %>% 
+  group_by(peak, group) %>% 
   summarise(mean=mean(estimate), sd=sd(estimate), n=n()) %>% 
   mutate(cv = sd/mean/sqrt(n)*100) %>% 
   datatable(extensions = 'Buttons', options = list(
@@ -71,8 +74,11 @@ aa_data <- all_aa %>%
   filter(peak=='13C') %>% 
   left_join(mmad, by=c('ion','file')) %>% 
   filter(gamma>(m-3*md) & gamma < (m+3*md))
-aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% arrange(md))$ion)
+aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% filter(md>0) %>% arrange(md))$ion)
+
+ion_plot <- levels(aa_data$ion)[1:4]
 aa_data %>% 
+  filter(ion %in% ion_plot) %>% 
   ggplot(aes(x=rt/60, y=gamma, group=file, color=group)) + 
     geom_point(size=0.1, alpha=0.2) + #geom_smooth() +
     theme_bw() + 
@@ -82,17 +88,19 @@ aa_data %>%
     ylab(bquote(''^13*'C'/''^12*'C')) -> g_rt
 
 aa_data %>%
-  ggplot(aes(x=logI, y=gamma, group=file, color=group)) + 
-    geom_point(size=0.1, alpha=0.2) + #geom_smooth() +
+  filter(ion %in% ion_plot) %>% 
+  ggplot(aes(x=tic, y=gamma, group=file, color=group)) + 
+    geom_point(size=0.3, alpha=0.4) + #geom_smooth() +
     theme_bw() + 
-    facet_grid(ion~.) + 
+    facet_grid(.~ion) + 
     theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
-    xlab('logI, a.u.') +
+    xlab('TIC, a.u.') + scale_x_log10() +
     ylab(bquote(''^13*'C'/''^12*'C')) -> g_logI
 aa_data %>% 
+  filter(ion %in% ion_plot) %>% 
   ggplot(aes(x=file, y=gamma, fill=group)) + geom_boxplot(position='dodge', outlier.color = NA, notch=T)  +
   theme_bw() +
-  theme(legend.position = "")+ 
+  theme(axis.text.x=element_blank())+ 
   ylab(bquote(''^13*'C'/''^12*'C')) + xlab("") +
   facet_wrap(~ion) -> g_bp
 aa_data %>% 
@@ -107,12 +115,30 @@ aa_data %>%
   theme(legend.position = "")+ 
   xlab(bquote(''^13*'C'/''^12*'C')) + ylab("density") -> g_density
 
+
+aa_data %>% 
+  filter(ion %in% ion_plot) %>% 
+  group_by(ion, group,file) %>% 
+  summarize(
+    mean=mean(gamma)*100, 
+    median=median(gamma)*100, 
+    wmean = weighted.mean(gamma, logI)*100, 
+    sd = sd(gamma)*100, 
+    se = sd(gamma)/sqrt(n())*100, 
+    n=n(), 
+    tic=median(log10(tic))) %>% 
+  arrange(tic) %>% 
+  ggplot(aes(x=tic, y=mean,  color=group)) +
+    geom_point(size=3) + geom_smooth() + geom_errorbar(aes(ymin=mean-3*se, ymax=mean+3*se))  +
+    theme_bw() + facet_grid(.~ion, scales='free') -> g_tic
+
 #grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
 
 print(g_rt)
 print(g_logI)
 print(g_bp)
 print(g_density)
+print(g_tic)
 ```
 
 ### File summary
@@ -256,9 +282,12 @@ aa_data <- all_aa %>%
   filter(peak=='15N') %>% 
   left_join(mmad, by=c('ion','file')) %>% 
   filter(gamma>(m-3*md) & gamma < (m+3*md))
-aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% arrange(md))$ion)
+aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% filter(md>0) %>% arrange(md))$ion)
+
+ion_plot <- levels(aa_data$ion)[1:4]
 
 aa_data %>% 
+  filter(ion %in% ion_plot) %>% 
   ggplot(aes(x=rt/60, y=gamma, group=file,color=group)) + 
     geom_point(size=0.1, alpha=0.2) + #geom_smooth() +
     theme_bw() + 
@@ -268,14 +297,16 @@ aa_data %>%
     ylab(bquote(''^15*'N'/''^14*'N')) -> g_rt
 
 aa_data %>% 
-  ggplot(aes(x=logI, y=gamma, group=file, color=group)) + 
-    geom_point(size=0.1, alpha=0.2) + #geom_smooth() +
+  filter(ion %in% ion_plot) %>% 
+  ggplot(aes(x=tic, y=gamma, group=file, color=group)) + 
+    geom_point(size=0.3, alpha=0.4) + #geom_smooth() +
     theme_bw() + 
-    facet_grid(ion~.) + 
+    facet_grid(.~ion) + 
     theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
-    xlab('logI, a.u.') +
+    xlab('TIC, a.u.') + scale_x_log10()+
     ylab(bquote(''^15*'N'/''^14*'N')) -> g_logI
 aa_data %>% 
+  filter(ion %in% ion_plot) %>% 
   filter(gamma>vmin & gamma<vmax) %>% 
   ggplot(aes(x=file, y=gamma, fill=group)) + geom_boxplot( outlier.color = NA, notch=T)  +
   theme_bw() +
@@ -288,6 +319,21 @@ aa_data %>%
   theme_bw() +
   theme(legend.position = "")+ 
   xlab(bquote(''^15*'N'/''^14*'N')) + ylab("density") -> g_density
+aa_data %>% 
+  filter(ion %in% ion_plot) %>% 
+  group_by(ion, group,file) %>% 
+  summarize(
+    mean=mean(gamma)*100, 
+    median=median(gamma)*100, 
+    wmean = weighted.mean(gamma, logI)*100, 
+    sd = sd(gamma)*100, 
+    se = sd(gamma)/sqrt(n())*100, 
+    n=n(), 
+    tic=median(log10(tic))) %>% 
+  arrange(tic) %>% 
+  ggplot(aes(x=tic, y=mean,  color=group)) +
+    geom_point(size=3) + geom_smooth() + geom_errorbar(aes(ymin=mean-3*se, ymax=mean+3*se))  +
+    theme_bw() + facet_grid(.~ion, scales='free') -> g_tic
 
 #grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
 
@@ -295,6 +341,7 @@ print(g_rt)
 print(g_logI)
 print(g_bp)
 print(g_density)
+print(g_tic)
 ```
 
 
@@ -435,8 +482,11 @@ aa_data <- all_aa %>%
   filter(peak=='2H') %>% 
   left_join(mmad, by=c('ion','file')) %>% 
   filter(gamma>(m-3*md) & gamma < (m+3*md))
-aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% arrange(md))$ion)
+aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% filter(md>0) %>% arrange(md))$ion)
+
+ion_plot <- levels(aa_data$ion)[1:4]
 aa_data %>% 
+  filter(ion %in% ion_plot) %>% 
   ggplot(aes(x=rt/60, y=gamma, color=file)) + 
     geom_point(size=0.1, alpha=0.2) + #geom_smooth() +
     theme_bw() + 
@@ -446,12 +496,13 @@ aa_data %>%
     ylab(bquote(''^2*'H'/''^1*'H')) -> g_rt
 
 aa_data %>% 
-  ggplot(aes(x=logI, y=gamma, color=group, group=file)) + 
-    geom_point(size=0.1, alpha=0.2) + #geom_smooth() +
+  filter(ion %in% ion_plot) %>% 
+  ggplot(aes(x=tic, y=gamma, color=group, group=file)) + 
+    geom_point(size=0.3, alpha=0.4) + #geom_smooth() +
     theme_bw() + 
     facet_grid(ion~.) + 
     theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
-    xlab('logI, a.u.') +
+    xlab('TIC, a.u.') + scale_x_log10() +
     ylab(bquote(''^2*'H'/''^1*'H')) -> g_logI
 aa_data %>% 
   ggplot(aes(x=file, y=gamma, fill=group)) + geom_boxplot( outlier.color = NA, notch=T)  +
@@ -465,6 +516,21 @@ aa_data %>%
   theme_bw() +
   theme(legend.position = "")+ 
   xlab(bquote(''^2*'H'/''^1*'H')) + xlab("density") -> g_density
+aa_data %>% 
+  filter(ion %in% ion_plot) %>% 
+  group_by(ion, group,file) %>% 
+  summarize(
+    mean=mean(gamma)*100, 
+    median=median(gamma)*100, 
+    wmean = weighted.mean(gamma, logI)*100, 
+    sd = sd(gamma)*100, 
+    se = sd(gamma)/sqrt(n())*100, 
+    n=n(), 
+    tic=median(log10(tic))) %>% 
+  arrange(tic) %>% 
+  ggplot(aes(x=tic, y=mean,  color=group)) +
+    geom_point(size=3) + geom_smooth() + geom_errorbar(aes(ymin=mean-3*se, ymax=mean+3*se))  +
+    theme_bw() + facet_grid(.~ion, scales='free') -> g_tic
 
 #grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
 
@@ -472,6 +538,7 @@ print(g_rt)
 print(g_logI)
 print(g_bp)
 print(g_density)
+print(g_tic)
 ```
 
 
@@ -614,8 +681,11 @@ aa_data <- all_aa %>%
   filter(peak=='18O') %>% 
   left_join(mmad, by=c('ion','file')) %>% 
   filter(gamma>(m-3*md) & gamma < (m+3*md))
-aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% arrange(md))$ion)
+aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% filter(md>0) %>% arrange(md))$ion)
+
+ion_plot <- levels(aa_data$ion)[1:4]
 aa_data %>% 
+  filter(ion %in% ion_plot) %>% 
   ggplot(aes(x=rt/60, y=gamma, color=group, group=file)) + 
     geom_point(size=0.1, alpha=0.2) + #geom_smooth() +
     theme_bw() + 
@@ -625,12 +695,13 @@ aa_data %>%
     ylab(bquote(''^18*'O'/''^16*'O')) -> g_rt
 
 aa_data %>% 
-  ggplot(aes(x=logI, y=gamma, color=group, group=file)) + 
+  filter(ion %in% ion_plot) %>% 
+  ggplot(aes(x=tic, y=gamma, color=group, group=file)) + 
     geom_point(size=0.1, alpha=0.2) + #geom_smooth() +
     theme_bw() + 
     facet_grid(ion~.) + 
     theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
-    xlab('logI, a.u.') +
+    xlab('TIC, a.u.') + scale_x_log10() +
     ylab(bquote(''^18*'O'/''^16*'O')) -> g_logI
 aa_data %>% 
   ggplot(aes(x=file, y=gamma, fill=group)) + geom_boxplot( outlier.color = NA, notch=T)  +
@@ -644,13 +715,30 @@ aa_data %>%
   theme_bw() +
   theme(legend.position = "")+ 
   xlab(bquote(''^18*'O'/''^16*'O')) + xlab("density") -> g_density
+aa_data %>% 
+  filter(ion %in% ion_plot) %>% 
+  group_by(ion, group,file) %>% 
+  summarize(
+    mean=mean(gamma)*100, 
+    median=median(gamma)*100, 
+    wmean = weighted.mean(gamma, logI)*100, 
+    sd = sd(gamma)*100, 
+    se = sd(gamma)/sqrt(n())*100, 
+    n=n(), 
+    tic=median(log10(tic))) %>% 
+  arrange(tic) %>% 
+  ggplot(aes(x=tic, y=mean,  color=group)) +
+    geom_point(size=3) + geom_smooth() + geom_errorbar(aes(ymin=mean-3*se, ymax=mean+3*se))  +
+    theme_bw() + facet_grid(.~ion, scales='free') -> g_tic
 
 #grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
 
 print(g_rt)
 print(g_logI)
 print(g_bp)
-print(g_density)}
+print(g_density)
+print(g_tic)
+}
 ```
 
 
