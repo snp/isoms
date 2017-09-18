@@ -38,8 +38,8 @@ summarizeImmoniums <- function(data=NA, files=NA, group=ifelse(is.na(data), 'fil
       group_by(file) %>%
       summarize(minTIC = min(tic, na.rm=T), maxTIC=max(tic, na.rm=T)) %>%
       summarize(low=max(c(2e7,minTIC)), high=min(maxTIC)) -> TIClimits
-    data <- data %>%
-      filter(tic>TIClimits$low & tic< TIClimits$high)
+    # data <- data %>%
+    #   filter(tic>TIClimits$low & tic< TIClimits$high)
   }else{
     data$tic <- 10
   }
