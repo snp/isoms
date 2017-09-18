@@ -24,6 +24,7 @@ mzMLtoCSV <- function(pattern="*.mzML"){
     clusterExport(cl, c("dir_", "ff"), environment())
     result <- bind_rows(parLapply(cl,
       ff, function(ii){
+        library(isoms)
         in_f <- file.path(dir_, ii)
         outf <- sub(".mzML$","_fit.csv", in_f)
         if(!file.exists(outf)){
