@@ -22,7 +22,7 @@ mzMLtoCSV <- function(pattern="*.mzML"){
   if(Sys.info()["sysname"] == "Windows"){
     cl <- makeCluster(ncpu)
     clusterExport(cl, c("dir_", "ff"), environment())
-    result <- bind_rows(parLapply(
+    result <- bind_rows(parLapply(cl,
       ff, function(ii){
         in_f <- file.path(dir_, ii)
         outf <- sub(".mzML$","_fit.csv", in_f)
