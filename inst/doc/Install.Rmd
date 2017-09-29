@@ -3,6 +3,7 @@ title: "isoMS software installation protocol"
 author: "Alexey L. Chernobrovkin"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
 ---
