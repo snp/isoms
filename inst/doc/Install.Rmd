@@ -1,0 +1,35 @@
+---
+title: "isoMS software installation protocol"
+author: "Alexey L. Chernobrovkin"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+isoMS software provided as an R-package. To be able to use it you need to have
+up-to-date R installed on your computer ([R-project](http://r-project.org)).
+
+## Installing the isoMS package
+
+- open R or R-studion window
+
+- execute commands
+  
+```{r, eval=FALSE}
+install.packages(c("tidyverse", "devtools","parallel","DT", "rmarkdown"))
+source("https://bioconductor.org/biocLite.R")
+biocLite(mzR)
+devtools::install_github("hadley/multidplyr")
+devtools::install_github("snp/isoms")
+```
+
+## Checking the installation
+
+Check the installation by executing `library(isoms)` in R window.
