@@ -1,4 +1,4 @@
-mzMLtoCSV <- function(pattern="*.mzML"){
+mzMLtoCSV <- function(pattern="*.mzML(.gz)?"){
   library(isoms)
   library(parallel)
   ncpu = detectCores()
@@ -26,7 +26,7 @@ mzMLtoCSV <- function(pattern="*.mzML"){
       ff, function(ii){
         library(isoms)
         in_f <- file.path(dir_, ii)
-        outf <- sub(".mzML$","_fit.csv", in_f)
+        outf <- sub(".mzML(.gz)?$","_fit.csv", in_f)
         if(!file.exists(outf)){
           xxx <- analyze_immoniums(in_f, ions=immoniumIons, width=0.0015, fixSigma=T)
           write_csv(xxx, outf)
@@ -43,7 +43,7 @@ mzMLtoCSV <- function(pattern="*.mzML"){
     result <- bind_rows(mclapply(
       ff, function(ii){
         in_f <- file.path(dir_, ii)
-        outf <- sub(".mzML$","_fit.csv", in_f)
+        outf <- sub(".mzML(.gz)?$","_fit.csv", in_f)
         if(!file.exists(outf)){
           xxx <- analyze_immoniums(in_f, ions=immoniumIons, width=0.0015, fixSigma=T)
           write_csv(xxx, outf)

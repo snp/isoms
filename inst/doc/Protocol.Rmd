@@ -1,10 +1,11 @@
 ---
 title: "IRMS protocol"
 author: "Alexey L. Chernobrovkin"
-date: "8/31/2017"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
   html_document:
     df_print: paged
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
