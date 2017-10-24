@@ -892,33 +892,33 @@ fileres_C %>%
 
 gp_CN <- isotopes_se %>% 
   ggplot(aes(
-    x=C, xmin=C-2*C_se, xmax=C+2*C_se, 
-    y=N, ymin=N-2*N_se, ymax=N+2*N_se,
+    x=C, xmin=C-1.96*C_se, xmax=C+1.96*C_se, 
+    y=N, ymin=N-1.96*N_se, ymax=N+1.96*N_se,
     color=group)) + geom_point()+geom_errorbar()+geom_errorbarh()+ theme_minimal() + facet_wrap(~ion, scales = 'free') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 gp_CH <- isotopes_se %>% 
   ggplot(aes(
-    x=C, xmin=C-2*C_se, xmax=C+2*C_se, 
-    y=H, ymin=H-2*H_se, ymax=H+2*H_se,
+    x=C, xmin=C-1.96*C_se, xmax=C+1.96*C_se, 
+    y=H, ymin=H-1.96*H_se, ymax=H+1.96*H_se,
     color=group)) + geom_point()+geom_errorbar()+geom_errorbarh()+ theme_minimal() + facet_wrap(~ion, scales = 'free') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 gp_CO <- isotopes_se %>% 
   ggplot(aes(
-    x=C, xmin=C-2*C_se, xmax=C+2*C_se, 
-    y=O, ymin=O-2*O_se, ymax=O+2*O_se,
+    x=C, xmin=C-1.96*C_se, xmax=C+1.96*C_se, 
+    y=O, ymin=O-1.96*O_se, ymax=O+1.96*O_se,
     color=group)) + geom_point()+geom_errorbar()+geom_errorbarh()+ theme_minimal() + facet_wrap(~ion, scales = 'free') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 gp_NH <- isotopes_se %>% 
   ggplot(aes(
-    x=N, xmin=N-2*N_se, xmax=N+2*N_se, 
-    y=H, ymin=H-2*H_se, ymax=H+2*H_se,
+    x=N, xmin=N-1.96*N_se, xmax=N+1.96*N_se, 
+    y=H, ymin=H-1.96*H_se, ymax=H+1.96*H_se,
     color=group)) + geom_point()+geom_errorbar()+geom_errorbarh()+ theme_minimal() + facet_wrap(~ion, scales = 'free') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 gp_NO <- isotopes_se %>% 
   ggplot(aes(
-    x=N, xmin=N-2*N_se, xmax=N+2*N_se, 
-    y=O, ymin=O-2*O_se, ymax=O+2*O_se,
+    x=N, xmin=N-1.96*N_se, xmax=N+1.96*N_se, 
+    y=O, ymin=O-1.96*O_se, ymax=O+1.96*O_se,
     color=group)) + geom_point()+geom_errorbar()+geom_errorbarh()+ theme_minimal() + facet_wrap(~ion, scales = 'free') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 gp_HO <- isotopes_se %>% 
   ggplot(aes(
-    x=H, xmin=H-2*H_se, xmax=H+2*H_se, 
-    y=O, ymin=O-2*O_se, ymax=O+2*O_se,
+    x=H, xmin=H-1.96*H_se, xmax=H+1.96*H_se, 
+    y=O, ymin=O-1.96*O_se, ymax=O+1.96*O_se,
     color=group)) + geom_point()+geom_errorbar()+geom_errorbarh()+ theme_minimal() + facet_wrap(~ion, scales = 'free') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
 #grid.arrange(
