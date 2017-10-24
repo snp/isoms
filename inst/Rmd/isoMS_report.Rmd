@@ -921,11 +921,18 @@ gp_HO <- isotopes_se %>%
     y=O, ymin=O-3*O_se, ymax=O+3*O_se,
     color=group)) + geom_point()+geom_errorbar()+geom_errorbarh()+ theme_minimal() + facet_wrap(~ion, scales = 'free') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
-grid.arrange(
-  gp_CN,
-  gp_CH,
-  gp_CO,
-  gp_NH,
-  gp_NO,
-  gp_HO)
+#grid.arrange(
+#  gp_CN,
+#  gp_CH,
+#  gp_CO,
+#  gp_NH,
+#  gp_NO,
+#  gp_HO)
+print(gp_CN)
+print(gp_CH)
+print(gp_CO)
+print(gp_NH)
+print(gp_NO)
+print(gp_HO)
+
 ```
