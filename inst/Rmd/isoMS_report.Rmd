@@ -24,7 +24,7 @@ require(knitr)
 
 ```
 
-
+<!--
 ## Linear model summaries {.tabset}
 
 ### LM file summary
@@ -56,6 +56,7 @@ lm_res %>%
   formatSignif(c('mean','sd'), 6) %>%  formatSignif(c('cv'), 2)
 
 ```
+-->
 
 ## Carbon: $$^{13}C/^{12}C$$ {.tabset}
 
@@ -185,6 +186,7 @@ res_group %>%
     backgroundRepeat = 'no-repeat',
     backgroundPosition = 'center'
   )
+res_group -> fileres_C
 # tlist <- list()
 # for(aa in unique(res_group$ion)){
 #   tt <- res_group %>% 
@@ -389,6 +391,8 @@ res_group %>%
     backgroundRepeat = 'no-repeat',
     backgroundPosition = 'center'
   )
+
+res_group -> fileres_N
 # tlist <- list()
 # for(aa in unique(res_group$ion)){
 #   tt <- res_group %>% 
@@ -586,6 +590,7 @@ res_group %>%
     backgroundRepeat = 'no-repeat',
     backgroundPosition = 'center'
   )
+res_group -> fileres_H
 # tlist <- list()
 # for(aa in unique(res_group$ion)){
 #   tt <- res_group %>% 
@@ -786,6 +791,7 @@ res_group %>%
     backgroundRepeat = 'no-repeat',
     backgroundPosition = 'center'
   )
+res_group -> fileres_O
 # tlist <- list()
 # for(aa in unique(res_group$ion)){
 #   tt <- res_group %>% 
@@ -865,3 +871,61 @@ res %>%
 ```
 
 
+## Final plots {.tabset}
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12}
+fileres_C %>% 
+  select(ion, group, file, C=mean, C_se = se) %>% 
+  left_join(
+    fileres_N %>% 
+      select(ion, group, file, N=mean, N_se = se)
+  ) %>% 
+  left_join(
+    fileres_H %>% 
+      select(ion, group, file, H=mean, H_se = se)
+  ) %>% 
+  left_join(
+    fileres_O %>% 
+      select(ion, group, file, O=mean, O_se = se)
+  ) %>% 
+  filter(ion %in% c('any','P','L','V','Pyr','H','F')) -> isotopes_se
+
+gp_CN <- isotopes_se %>% 
+  ggplot(aes(
+    x=C, xmin=C-3*C_se, xmax=C+3*C_se, 
+    y=N, ymin=N-3*N_se, ymax=N+3*N_se,
+    color=group)) + geom_point()+geom_errorbar()+geom_errorbarh()+ theme_minimal() + facet_wrap(~ion, scales = 'free') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+gp_CH <- isotopes_se %>% 
+  ggplot(aes(
+    x=C, xmin=C-3*C_se, xmax=C+3*C_se, 
+    y=H, ymin=H-3*H_se, ymax=H+3*H_se,
+    color=group)) + geom_point()+geom_errorbar()+geom_errorbarh()+ theme_minimal() + facet_wrap(~ion, scales = 'free') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+gp_CO <- isotopes_se %>% 
+  ggplot(aes(
+    x=C, xmin=C-3*C_se, xmax=C+3*C_se, 
+    y=O, ymin=O-3*O_se, ymax=O+3*O_se,
+    color=group)) + geom_point()+geom_errorbar()+geom_errorbarh()+ theme_minimal() + facet_wrap(~ion, scales = 'free') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+gp_NH <- isotopes_se %>% 
+  ggplot(aes(
+    x=N, xmin=N-3*N_se, xmax=N+3*N_se, 
+    y=H, ymin=H-3*H_se, ymax=H+3*H_se,
+    color=group)) + geom_point()+geom_errorbar()+geom_errorbarh()+ theme_minimal() + facet_wrap(~ion, scales = 'free') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+gp_NO <- isotopes_se %>% 
+  ggplot(aes(
+    x=N, xmin=N-3*N_se, xmax=N+3*N_se, 
+    y=O, ymin=O-3*O_se, ymax=O+3*O_se,
+    color=group)) + geom_point()+geom_errorbar()+geom_errorbarh()+ theme_minimal() + facet_wrap(~ion, scales = 'free') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+gp_HO <- isotopes_se %>% 
+  ggplot(aes(
+    x=H, xmin=H-3*H_se, xmax=H+3*H_se, 
+    y=O, ymin=O-3*O_se, ymax=O+3*O_se,
+    color=group)) + geom_point()+geom_errorbar()+geom_errorbarh()+ theme_minimal() + facet_wrap(~ion, scales = 'free') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+grid.arrange(
+  gp_CN,
+  gp_CH,
+  gp_CO,
+  gp_NH,
+  gp_NO,
+  gp_HO)
+```
