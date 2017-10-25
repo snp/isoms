@@ -29,7 +29,7 @@ require(knitr)
 
 ### LM file summary
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, eval=FALSE}
 lm_res %>% 
   filter(term=='I0') %>% 
   select(peak, group, file, estimate, std.error) %>% 
@@ -43,7 +43,7 @@ lm_res %>%
 
 ### LM group summary
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
+```{r, echo=FALSE, message=FALSE, warning=FALSE, eval=FALSE}
 lm_res %>% 
   filter(term=='I0') %>% 
   select(peak, group, file, estimate, std.error) %>% 
