@@ -177,7 +177,7 @@ get_isopeaks2 <- function(ss,
                   maxAttempts = 10)
   r2 <- rSquared(model, sub_ss[, 2])
   spec1 = matrix(ncol=2, nrow=0)
-  if(plot){
+  if(plot & class(model) != 'try-error'){
     plots <- list()
     plots[['mono']] <- plot_peakfit(sub_ss, model)+ggtitle('mono')
   }
