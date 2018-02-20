@@ -1,0 +1,697 @@
+---
+title: "isoMS analysis report"
+author: "Alexey L. Chernobrovkin"
+#date: "6/29/2017"
+output: 
+  html_document:
+    theme: simplex
+    fig_retina: true
+    code_folding: hide
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(isoms)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(broom)
+library(gridExtra)
+library(DT)
+require(knitr)
+
+```
+
+
+## Carbon: $$^{13}C/^{12}C$$ {.tabset}
+
+### Data overview
+
+```{r 13C, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12, fig.height=12}
+vals <- loess_C$diff
+vmin <- quantile(vals, 0.02)
+vmax <- quantile(vals, 0.98)
+
+loess_C %>% 
+  group_by(ion,file) %>% 
+  summarize(m = median(diff), md = mad(diff)) -> mmad
+
+nf <- length(unique(loess_C$file))
+
+aa_data <- loess_C %>%
+  left_join(mmad, by=c('ion','file')) %>% 
+  filter(diff>(m-3*md) & diff < (m+3*md))
+aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(n=n(),md=mean(md)) %>% filter(md>0, n==nf) %>% arrange(md))$ion)
+
+ion_plot <- levels(aa_data$ion)[1:4]
+
+aa_data %>%
+  filter(ion %in% ion_plot) %>% 
+  ggplot(aes(x=ldI, y=diff, group=file, color=group)) + 
+    geom_point(size=0.3, alpha=0.4) + #geom_smooth() +
+    theme_bw() + 
+    facet_grid(.~ion) + 
+    theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
+    xlab('ldI, a.u.')  +
+    ylab("diff, ‰") -> g_logI
+aa_data %>% 
+  filter(ion %in% ion_plot) %>% 
+  ggplot(aes(x=file, y=diff, fill=group)) + geom_boxplot(position='dodge', outlier.color = NA, notch=T)  +
+  theme_bw() +
+  theme(axis.text.x=element_blank())+ 
+  ylab(bquote(''^13*'C'/''^12*'C')) + xlab("") +
+  facet_wrap(~ion) -> g_bp
+aa_data %>% 
+  filter(ion=='any') %>% 
+  ggplot(aes(x=diff, group=file, fill=group)) + geom_density(alpha=0.3)  +
+  theme_bw() +
+  theme(legend.position = "")+ 
+  xlab(bquote(''^13*'C'/''^12*'C')) + ylab("density") -> g_density
+
+
+aa_data %>% 
+  filter(ion %in% ion_plot) %>% 
+  group_by(ion, group,file) %>% 
+  summarize(
+    mean=mean(diff), 
+    median=median(diff), 
+    wmean = weighted.mean(diff, 10^ldI), 
+    mpb = mostprobable(diff),
+    sd = sd(diff), 
+    se = sd(diff)/sqrt(n()),
+    n=n(), 
+    tic=median(ldI,na.rm=T)) %>% 
+  arrange(tic) %>% 
+  ggplot(aes(x=tic, y=mpb,  color=group)) +
+    geom_point(size=3) + geom_smooth(method = "lm", se=F)+ geom_errorbar(aes(ymin=mpb-3*se, ymax=mpb+3*se),size=2)  +
+    theme_bw() + facet_grid(.~ion, scales='free') -> g_tic
+
+#grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
+
+#print(g_rt)
+print(g_logI)
+print(g_bp)
+print(g_density)
+print(g_tic)
+```
+
+
+### File summary
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12}
+aa_data %>% 
+  group_by(ion, group,file) %>% 
+  summarize(
+    mean.diff=mean(diff), 
+    median.diff=median(diff), 
+    wmean.diff = weighted.mean(diff, 10^ldI), 
+    mpb.diff = mostprobable(diff),
+    mean.sample = mean(sample)*100,
+    mean.control = mean(control)*100,
+    sd = sd(diff), 
+    se = sd(diff)/sqrt(n()), 
+    n=n(), 
+    tic=median(log10(ldI), na.rm=T)) %>% 
+  arrange(ion) -> res_group
+res_group %>% 
+  ungroup() %>% 
+  arrange(ion, group, file) %>% 
+  datatable(extensions = 'Buttons', options = list(
+                                        dom = 'Bfrtip',
+                                        buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
+  )) %>%
+  formatSignif(c('mean.sample','mean.control'), 6)
+
+res_group -> fileres_C
+
+```
+
+
+### Group summary
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+res_group %>%
+  summarize(gmean=mean(mean.diff), gmedian=mean(median.diff), gwmean=mean(wmean.diff),gmpb = mean(mpb.diff), sd_mean=sd(mean.diff), sd_median=sd(median.diff), sd_wmean=sd(wmean.diff),sd_mpb=sd(mpb.diff), n=n()) %>%
+  mutate(
+    cv_mean = sd_mean/gmean/sqrt(n)*100,
+    cv_median = sd_median/gmedian/sqrt(n)*100,
+    cv_wmean = sd_wmean/gwmean/sqrt(n)*100
+  ) -> res
+res %>% 
+    datatable(extensions = 'Buttons', options = list(
+                                        dom = 'Bfrtip',
+                                        buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
+    )) %>%  
+    formatSignif(c('gmean','gmedian','gwmean','gmpb','sd_mean','sd_median','sd_wmean'), 6) %>%
+    formatSignif(c('cv_mean','cv_median','cv_wmean'), 2) %>%
+    formatStyle(
+      'gmean',
+      background = styleColorBar(res$gmean, 'azure'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    ) %>%
+    formatStyle(
+      'gmedian',
+      background = styleColorBar(res$gmedian, 'azure'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    ) %>%
+    formatStyle(
+      'gwmean',
+      background = styleColorBar(res$gwmean, 'azure'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )
+```
+
+
+
+
+
+
+## Nitrogen: $$^{15}N/^{14}N$$ {.tabset}
+
+### Data overview
+
+```{r 15N, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12, fig.height=12}
+vals <- loess_N$diff
+vmin <- quantile(vals, 0.02)
+vmax <- quantile(vals, 0.98)
+
+loess_N %>% 
+  group_by(ion,file) %>% 
+  summarize(m = median(diff), md = mad(diff)) -> mmad
+
+nf <- length(unique(loess_C$file))
+
+aa_data <- loess_N %>%
+  left_join(mmad, by=c('ion','file')) %>% 
+  filter(diff>(m-3*md) & diff < (m+3*md))
+aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(n=n(),md=mean(md)) %>% filter(md>0, n==nf) %>% arrange(md))$ion)
+
+ion_plot <- levels(aa_data$ion)[1:4]
+
+aa_data %>%
+  filter(ion %in% ion_plot) %>% 
+  ggplot(aes(x=ldI, y=diff, group=file, color=group)) + 
+    geom_point(size=0.3, alpha=0.4) + #geom_smooth() +
+    theme_bw() + 
+    facet_grid(.~ion) + 
+    theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
+    xlab('ldI, a.u.')  +
+    ylab("diff, ‰") -> g_logI
+aa_data %>% 
+  filter(ion %in% ion_plot) %>% 
+  ggplot(aes(x=file, y=diff, fill=group)) + geom_boxplot(position='dodge', outlier.color = NA, notch=T)  +
+  theme_bw() +
+  theme(axis.text.x=element_blank())+ 
+  ylab(bquote(''^15*'N'/''^14*'N')) + xlab("") +
+  facet_wrap(~ion) -> g_bp
+aa_data %>% 
+  filter(ion=='any') %>% 
+  ggplot(aes(x=diff, group=file, fill=group)) + geom_density(alpha=0.3)  +
+  theme_bw() +
+  theme(legend.position = "")+ 
+  xlab(bquote(''^15*'N'/''^14*'N')) + ylab("density") -> g_density
+
+
+aa_data %>% 
+  filter(ion %in% ion_plot) %>% 
+  group_by(ion, group,file) %>% 
+  summarize(
+    mean=mean(diff), 
+    median=median(diff), 
+    wmean = weighted.mean(diff, 10^ldI), 
+    mpb = mostprobable(diff),
+    sd = sd(diff), 
+    se = sd(diff)/sqrt(n()),
+    n=n(), 
+    tic=median(ldI,na.rm=T)) %>% 
+  arrange(tic) %>% 
+  ggplot(aes(x=tic, y=mpb,  color=group)) +
+    geom_point(size=3) + geom_smooth(method = "lm", se=F)+ geom_errorbar(aes(ymin=mpb-3*se, ymax=mpb+3*se),size=2)  +
+    theme_bw() + facet_grid(.~ion, scales='free') -> g_tic
+
+#grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
+
+#print(g_rt)
+print(g_logI)
+print(g_bp)
+print(g_density)
+print(g_tic)
+```
+
+
+### File summary
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12}
+aa_data %>% 
+  group_by(ion, group,file) %>% 
+  summarize(
+    mean.diff=mean(diff), 
+    median.diff=median(diff), 
+    wmean.diff = weighted.mean(diff, 10^ldI), 
+    mpb.diff = mostprobable(diff),
+    mean.sample = mean(sample)*100,
+    mean.control = mean(control)*100,
+    sd = sd(diff), 
+    se = sd(diff)/sqrt(n()), 
+    n=n(), 
+    tic=median(log10(ldI), na.rm=T)) %>% 
+  arrange(ion) -> res_group
+res_group %>% 
+  ungroup() %>% 
+  arrange(ion, group, file) %>% 
+  datatable(extensions = 'Buttons', options = list(
+                                        dom = 'Bfrtip',
+                                        buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
+  )) %>%
+  formatSignif(c('mean.sample','mean.control'), 6)
+
+res_group -> fileres_N
+
+```
+
+
+### Group summary
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+res_group %>%
+  summarize(gmean=mean(mean.diff), gmedian=mean(median.diff), gwmean=mean(wmean.diff),gmpb = mean(mpb.diff), sd_mean=sd(mean.diff), sd_median=sd(median.diff), sd_wmean=sd(wmean.diff),sd_mpb=sd(mpb.diff), n=n()) %>%
+  mutate(
+    cv_mean = sd_mean/gmean/sqrt(n)*100,
+    cv_median = sd_median/gmedian/sqrt(n)*100,
+    cv_wmean = sd_wmean/gwmean/sqrt(n)*100
+  ) -> res
+res %>% 
+    datatable(extensions = 'Buttons', options = list(
+                                        dom = 'Bfrtip',
+                                        buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
+    )) %>%  
+    formatSignif(c('gmean','gmedian','gwmean','gmpb','sd_mean','sd_median','sd_wmean'), 6) %>%
+    formatSignif(c('cv_mean','cv_median','cv_wmean'), 2) %>%
+    formatStyle(
+      'gmean',
+      background = styleColorBar(res$gmean, 'azure'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    ) %>%
+    formatStyle(
+      'gmedian',
+      background = styleColorBar(res$gmedian, 'azure'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    ) %>%
+    formatStyle(
+      'gwmean',
+      background = styleColorBar(res$gwmean, 'azure'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )
+```
+
+
+
+
+
+
+## Hydrogen: $$^{2}H/^{1}H$$ {.tabset}
+
+### Data overview
+
+```{r 2H, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12, fig.height=12}
+vals <- loess_C$diff
+vmin <- quantile(vals, 0.02)
+vmax <- quantile(vals, 0.98)
+
+loess_H %>% 
+  group_by(ion,file) %>% 
+  summarize(m = median(diff), md = mad(diff)) -> mmad
+
+nf <- length(unique(loess_C$file))
+
+aa_data <- loess_H %>%
+  left_join(mmad, by=c('ion','file')) %>% 
+  filter(diff>(m-3*md) & diff < (m+3*md))
+aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(n=n(),md=mean(md)) %>% filter(md>0, n==nf) %>% arrange(md))$ion)
+
+ion_plot <- levels(aa_data$ion)[1:4]
+
+aa_data %>%
+  filter(ion %in% ion_plot) %>% 
+  ggplot(aes(x=ldI, y=diff, group=file, color=group)) + 
+    geom_point(size=0.3, alpha=0.4) + #geom_smooth() +
+    theme_bw() + 
+    facet_grid(.~ion) + 
+    theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
+    xlab('ldI, a.u.')  +
+    ylab("diff, ‰") -> g_logI
+aa_data %>% 
+  filter(ion %in% ion_plot) %>% 
+  ggplot(aes(x=file, y=diff, fill=group)) + geom_boxplot(position='dodge', outlier.color = NA, notch=T)  +
+  theme_bw() +
+  theme(axis.text.x=element_blank())+ 
+  ylab(bquote(''^2*'H'/''^1*'H')) + xlab("") +
+  facet_wrap(~ion) -> g_bp
+aa_data %>% 
+  filter(ion=='any') %>% 
+  ggplot(aes(x=diff, group=file, fill=group)) + geom_density(alpha=0.3)  +
+  theme_bw() +
+  theme(legend.position = "")+ 
+  xlab(bquote(''^2*'H'/''^1*'H')) + ylab("density") -> g_density
+
+
+aa_data %>% 
+  filter(ion %in% ion_plot) %>% 
+  group_by(ion, group,file) %>% 
+  summarize(
+    mean=mean(diff), 
+    median=median(diff), 
+    wmean = weighted.mean(diff, 10^ldI), 
+    mpb = mostprobable(diff),
+    sd = sd(diff), 
+    se = sd(diff)/sqrt(n()),
+    n=n(), 
+    tic=median(ldI,na.rm=T)) %>% 
+  arrange(tic) %>% 
+  ggplot(aes(x=tic, y=mpb,  color=group)) +
+    geom_point(size=3) + geom_smooth(method = "lm", se=F)+ geom_errorbar(aes(ymin=mpb-3*se, ymax=mpb+3*se),size=2)  +
+    theme_bw() + facet_grid(.~ion, scales='free') -> g_tic
+
+#grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
+
+#print(g_rt)
+print(g_logI)
+print(g_bp)
+print(g_density)
+print(g_tic)
+```
+
+
+### File summary
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12}
+aa_data %>% 
+  group_by(ion, group,file) %>% 
+  summarize(
+    mean.diff=mean(diff), 
+    median.diff=median(diff), 
+    wmean.diff = weighted.mean(diff, 10^ldI), 
+    mpb.diff = mostprobable(diff),
+    mean.sample = mean(sample)*100,
+    mean.control = mean(control)*100,
+    sd = sd(diff), 
+    se = sd(diff)/sqrt(n()), 
+    n=n(), 
+    tic=median(log10(ldI), na.rm=T)) %>% 
+  arrange(ion) -> res_group
+res_group %>% 
+  ungroup() %>% 
+  arrange(ion, group, file) %>% 
+  datatable(extensions = 'Buttons', options = list(
+                                        dom = 'Bfrtip',
+                                        buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
+  )) %>%
+  formatSignif(c('mean.sample','mean.control'), 6)
+
+res_group -> fileres_H
+
+```
+
+
+### Group summary
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+res_group %>%
+  summarize(gmean=mean(mean.diff), gmedian=mean(median.diff), gwmean=mean(wmean.diff),gmpb = mean(mpb.diff), sd_mean=sd(mean.diff), sd_median=sd(median.diff), sd_wmean=sd(wmean.diff),sd_mpb=sd(mpb.diff), n=n()) %>%
+  mutate(
+    cv_mean = sd_mean/gmean/sqrt(n)*100,
+    cv_median = sd_median/gmedian/sqrt(n)*100,
+    cv_wmean = sd_wmean/gwmean/sqrt(n)*100
+  ) -> res
+res %>% 
+    datatable(extensions = 'Buttons', options = list(
+                                        dom = 'Bfrtip',
+                                        buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
+    )) %>%  
+    formatSignif(c('gmean','gmedian','gwmean','gmpb','sd_mean','sd_median','sd_wmean'), 6) %>%
+    formatSignif(c('cv_mean','cv_median','cv_wmean'), 2) %>%
+    formatStyle(
+      'gmean',
+      background = styleColorBar(res$gmean, 'azure'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    ) %>%
+    formatStyle(
+      'gmedian',
+      background = styleColorBar(res$gmedian, 'azure'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    ) %>%
+    formatStyle(
+      'gwmean',
+      background = styleColorBar(res$gwmean, 'azure'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )
+```
+
+
+
+
+
+
+
+
+
+## Oxygen: $$^{18}O/^{16}O$$ {.tabset}
+
+### Data overview
+
+```{r 18O, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12, fig.height=12}
+vals <- loess_O$diff
+vmin <- quantile(vals, 0.02)
+vmax <- quantile(vals, 0.98)
+
+loess_O %>% 
+  group_by(ion,file) %>% 
+  summarize(m = median(diff), md = mad(diff)) -> mmad
+
+nf <- length(unique(loess_C$file))
+
+aa_data <- loess_O %>%
+  left_join(mmad, by=c('ion','file')) %>% 
+  filter(diff>(m-3*md) & diff < (m+3*md))
+aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(n=n(),md=mean(md)) %>% filter(md>0, n==nf) %>% arrange(md))$ion)
+
+ion_plot <- levels(aa_data$ion)[1:4]
+
+aa_data %>%
+  filter(ion %in% ion_plot) %>% 
+  ggplot(aes(x=ldI, y=diff, group=file, color=group)) + 
+    geom_point(size=0.3, alpha=0.4) + #geom_smooth() +
+    theme_bw() + 
+    facet_grid(.~ion) + 
+    theme(legend.position = "",axis.text.x = element_text(angle = 90, hjust = 1))+ 
+    xlab('ldI, a.u.')  +
+    ylab("diff, ‰") -> g_logI
+aa_data %>% 
+  filter(ion %in% ion_plot) %>% 
+  ggplot(aes(x=file, y=diff, fill=group)) + geom_boxplot(position='dodge', outlier.color = NA, notch=T)  +
+  theme_bw() +
+  theme(axis.text.x=element_blank())+ 
+  ylab(bquote(''^18*'O'/''^16*'O')) + xlab("") +
+  facet_wrap(~ion) -> g_bp
+aa_data %>% 
+  filter(ion=='any') %>% 
+  ggplot(aes(x=diff, group=file, fill=group)) + geom_density(alpha=0.3)  +
+  theme_bw() +
+  theme(legend.position = "")+ 
+  xlab(bquote(''^18*'O'/''^16*'O')) + ylab("density") -> g_density
+
+
+aa_data %>% 
+  filter(ion %in% ion_plot) %>% 
+  group_by(ion, group,file) %>% 
+  summarize(
+    mean=mean(diff), 
+    median=median(diff), 
+    wmean = weighted.mean(diff, 10^ldI), 
+    mpb = mostprobable(diff),
+    sd = sd(diff), 
+    se = sd(diff)/sqrt(n()),
+    n=n(), 
+    tic=median(ldI,na.rm=T)) %>% 
+  arrange(tic) %>% 
+  ggplot(aes(x=tic, y=mpb,  color=group)) +
+    geom_point(size=3) + geom_smooth(method = "lm", se=F)+ geom_errorbar(aes(ymin=mpb-3*se, ymax=mpb+3*se),size=2)  +
+    theme_bw() + facet_grid(.~ion, scales='free') -> g_tic
+
+#grid.arrange(g_rt, g_logI, g_bp, g_density, ncol=1)
+
+#print(g_rt)
+print(g_logI)
+print(g_bp)
+print(g_density)
+print(g_tic)
+```
+
+
+### File summary
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12}
+aa_data %>% 
+  group_by(ion, group,file) %>% 
+  summarize(
+    mean.diff=mean(diff), 
+    median.diff=median(diff), 
+    wmean.diff = weighted.mean(diff, 10^ldI), 
+    mpb.diff = mostprobable(diff),
+    mean.sample = mean(sample)*100,
+    mean.control = mean(control)*100,
+    sd = sd(diff), 
+    se = sd(diff)/sqrt(n()), 
+    n=n(), 
+    tic=median(log10(ldI), na.rm=T)) %>% 
+  arrange(ion) -> res_group
+res_group %>% 
+  ungroup() %>% 
+  arrange(ion, group, file) %>% 
+  datatable(extensions = 'Buttons', options = list(
+                                        dom = 'Bfrtip',
+                                        buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
+  )) %>%
+  formatSignif(c('mean.sample','mean.control'), 6)
+
+res_group -> fileres_O
+
+```
+
+
+### Group summary
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+res_group %>%
+  summarize(gmean=mean(mean.diff), gmedian=mean(median.diff), gwmean=mean(wmean.diff),gmpb = mean(mpb.diff), sd_mean=sd(mean.diff), sd_median=sd(median.diff), sd_wmean=sd(wmean.diff),sd_mpb=sd(mpb.diff), n=n()) %>%
+  mutate(
+    cv_mean = sd_mean/gmean/sqrt(n)*100,
+    cv_median = sd_median/gmedian/sqrt(n)*100,
+    cv_wmean = sd_wmean/gwmean/sqrt(n)*100
+  ) -> res
+res %>% 
+    datatable(extensions = 'Buttons', options = list(
+                                        dom = 'Bfrtip',
+                                        buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
+    )) %>%  
+    formatSignif(c('gmean','gmedian','gwmean','gmpb','sd_mean','sd_median','sd_wmean'), 6) %>%
+    formatSignif(c('cv_mean','cv_median','cv_wmean'), 2) %>%
+    formatStyle(
+      'gmean',
+      background = styleColorBar(res$gmean, 'azure'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    ) %>%
+    formatStyle(
+      'gmedian',
+      background = styleColorBar(res$gmedian, 'azure'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    ) %>%
+    formatStyle(
+      'gwmean',
+      background = styleColorBar(res$gwmean, 'azure'),
+      backgroundSize = '100% 90%',
+      backgroundRepeat = 'no-repeat',
+      backgroundPosition = 'center'
+    )
+```
+
+
+
+
+
+
+
+
+## Final plots {.tabset}
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12}
+fileres_C %>% 
+  select(ion, group, file, C=mpb.diff, C_se = se) %>% 
+  left_join(
+    fileres_N %>% 
+      select(ion, group, file, N=mpb.diff, N_se = se)
+  ) %>% 
+  left_join(
+    fileres_H %>% 
+      select(ion, group, file, H=mpb.diff, H_se = se)
+  ) %>% 
+  left_join(
+    fileres_O %>% 
+      select(ion, group, file, O=mpb.diff, O_se = se)
+  ) %>% 
+  filter(ion %in% c('any','P','L','V','Pyr','H','F')) -> isotopes_se
+
+gp_CN <- isotopes_se %>% 
+  ggplot(aes(
+    x=C, xmin=C-1.96*C_se, xmax=C+1.96*C_se, 
+    y=N, ymin=N-1.96*N_se, ymax=N+1.96*N_se,
+    color=group)) + geom_point()+geom_errorbar()+geom_errorbarh()+ theme_minimal() + facet_wrap(~ion, scales = 'free') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+gp_CH <- isotopes_se %>% 
+  ggplot(aes(
+    x=C, xmin=C-1.96*C_se, xmax=C+1.96*C_se, 
+    y=H, ymin=H-1.96*H_se, ymax=H+1.96*H_se,
+    color=group)) + geom_point()+geom_errorbar()+geom_errorbarh()+ theme_minimal() + facet_wrap(~ion, scales = 'free') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+gp_CO <- isotopes_se %>% 
+  ggplot(aes(
+    x=C, xmin=C-1.96*C_se, xmax=C+1.96*C_se, 
+    y=O, ymin=O-1.96*O_se, ymax=O+1.96*O_se,
+    color=group)) + geom_point()+geom_errorbar()+geom_errorbarh()+ theme_minimal() + facet_wrap(~ion, scales = 'free') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+gp_NH <- isotopes_se %>% 
+  ggplot(aes(
+    x=N, xmin=N-1.96*N_se, xmax=N+1.96*N_se, 
+    y=H, ymin=H-1.96*H_se, ymax=H+1.96*H_se,
+    color=group)) + geom_point()+geom_errorbar()+geom_errorbarh()+ theme_minimal() + facet_wrap(~ion, scales = 'free') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+gp_NO <- isotopes_se %>% 
+  ggplot(aes(
+    x=N, xmin=N-1.96*N_se, xmax=N+1.96*N_se, 
+    y=O, ymin=O-1.96*O_se, ymax=O+1.96*O_se,
+    color=group)) + geom_point()+geom_errorbar()+geom_errorbarh()+ theme_minimal() + facet_wrap(~ion, scales = 'free') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+gp_HO <- isotopes_se %>% 
+  ggplot(aes(
+    x=H, xmin=H-1.96*H_se, xmax=H+1.96*H_se, 
+    y=O, ymin=O-1.96*O_se, ymax=O+1.96*O_se,
+    color=group)) + geom_point()+geom_errorbar()+geom_errorbarh()+ theme_minimal() + facet_wrap(~ion, scales = 'free') + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+#grid.arrange(
+#  gp_CN,
+#  gp_CH,
+#  gp_CO,
+#  gp_NH,
+#  gp_NO,
+#  gp_HO)
+print(gp_CN)
+print(gp_CH)
+print(gp_CO)
+print(gp_NH)
+print(gp_NO)
+print(gp_HO)
+
+```

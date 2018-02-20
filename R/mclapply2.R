@@ -24,52 +24,38 @@ library(parallel)
 ##' x <- mclapply2(1:1000, function(i, y) Sys.sleep(0.01))
 ##' x <- mclapply2(1:3, function(i, y) Sys.sleep(1), mc.cores=1)
 ##------------------------------------------------------------------------------
-mclapply2 <- function(X,
-                      FUN,
-                      ...,
-                      mc.preschedule = TRUE,
-                      mc.set.seed = TRUE,
-                      mc.silent = FALSE,
-                      mc.cores = getOption("mc.cores", 2L),
-                      mc.cleanup = TRUE,
-                      mc.allow.recursive = TRUE,
-                      mc.progress = TRUE,
-                      mc.style = 3)
-{
-  if (!is.vector(X) || is.object(X))
-    X <- as.list(X)
-
-  if (mc.progress) {
-    f <- fifo(tempfile(), open = "w+b", blocking = T)
-    p <- parallel:::mcfork()
-    pb <-
-      txtProgressBar(0, length(X), style = mc.style)
-    setTxtProgressBar(pb, 0)
-    progress <- 0
-    if (inherits(p, "masterProcess")) {
-      while (progress < length(X)) {
-        readBin(f, "double")
-        progress <- progress + 1
-        setTxtProgressBar(pb, progress)
-      }
-      cat("\n")
-      parallel:::mcexit()
+mclapply2 <- function(X, FUN, ..., mc.preschedule = TRUE, mc.set.seed = TRUE, mc.silent = FALSE, mc.cores = getOption("mc.cores", 2L), mc.cleanup = TRUE, mc.allow.recursive = TRUE, 
+    mc.progress = TRUE, mc.style = 3) {
+    if (!is.vector(X) || is.object(X)) 
+        X <- as.list(X)
+    
+    if (mc.progress) {
+        f <- fifo(tempfile(), open = "w+b", blocking = T)
+        p <- parallel:::mcfork()
+        pb <- txtProgressBar(0, length(X), style = mc.style)
+        setTxtProgressBar(pb, 0)
+        progress <- 0
+        if (inherits(p, "masterProcess")) {
+            while (progress < length(X)) {
+                readBin(f, "double")
+                progress <- progress + 1
+                setTxtProgressBar(pb, progress)
+            }
+            cat("\n")
+            parallel:::mcexit()
+        }
     }
-  }
-  tryCatch({
-    result <- parallel::mclapply(X, function(...) {
-      res <- FUN(...)
-      if (mc.progress)
-        writeBin(1, f)
-      res
-    },
-    mc.preschedule = mc.preschedule, mc.set.seed = mc.set.seed,
-    mc.silent = mc.silent, mc.cores = mc.cores,
-    mc.cleanup = mc.cleanup, mc.allow.recursive = mc.allow.recursive)
-
-  }, finally = {
-    if (mc.progress)
-      close(f)
-  })
-  result
+    tryCatch({
+        result <- parallel::mclapply(X, function(...) {
+            res <- FUN(...)
+            if (mc.progress) 
+                writeBin(1, f)
+            res
+        }, mc.preschedule = mc.preschedule, mc.set.seed = mc.set.seed, mc.silent = mc.silent, mc.cores = mc.cores, mc.cleanup = mc.cleanup, mc.allow.recursive = mc.allow.recursive)
+        
+    }, finally = {
+        if (mc.progress) 
+            close(f)
+    })
+    result
 }
