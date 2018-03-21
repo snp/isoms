@@ -2,7 +2,7 @@ analyze_immoniums <- function(file, width=0.001, ions=immoniumIons, fixSigma=T){
   message(sprintf("Reading file [%s]", file))
   msrun <- openMSfile(file, backend = "Ramp")
   hd <- header(msrun)
-  immscans <- which(hd$collisionEnergy>49 & (hd$msLevel>1))
+  immscans <- which(hd$collisionEnergy>45 & (hd$msLevel>1))
   message(sprintf("\t%d immonium scans found", length(immscans)))
   result <- data.frame()
   message("Processing:")
@@ -18,8 +18,15 @@ analyze_immoniums <- function(file, width=0.001, ions=immoniumIons, fixSigma=T){
       ss_range <- diff(range(ss[,1]))
       for(ion_ in names(ions)){
         mz = monoMass(ions[[ion_]])
+        peaks <- c("13C")
+        if("N" %in% names(ions[[ion_]]) & ions[[ion_]]["N"] > 0)
+          peaks <- c(peaks, "15N")
+        if("H" %in% names(ions[[ion_]]) & ions[[ion_]]["H"] > 0)
+          peaks <- c(peaks, "2H")
+        if("O" %in% names(ions[[ion_]]) & ions[[ion_]]["O"] > 0)
+          peaks <- c(peaks, "18O")
         if(ss_range>5){
-          cres <- get_isopeaks(ss, mz, width=width, npoint=6, fixSigma=fixSigma)
+          cres <- get_isopeaks(ss, mz, width=width, npoint=6, fixSigma=fixSigma, peaks=peaks)
         }else{
           cres <- get_isopeaks_nomono(ss, mz, width=width, npoint=6, fixSigma=fixSigma)
         }

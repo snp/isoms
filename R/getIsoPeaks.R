@@ -21,12 +21,12 @@
 #' @export
 #'
 #' @examples
-get_isopeaks <- function(ss, mz, width = 0.002, npoint = 10, tol = 0.01, fixSigma = T, plot = F) {
+get_isopeaks <- function(ss, mz, width = 0.002, npoint = 10, tol = 0.01, fixSigma = T, plot = F, peaks=c("13C", "15N", "2H", "18O")) {
     # Checking input data
     stopifnot(length(dim(ss)) == 2)
     # here we'll put our result
     res <- data.frame()
-    
+
     # Fitting monoisotopic peak
     p_int <- findInterval(c(mz - tol, mz + tol), ss[, 1])
     if (diff(p_int) < npoint) {
@@ -34,16 +34,16 @@ get_isopeaks <- function(ss, mz, width = 0.002, npoint = 10, tol = 0.01, fixSigm
         return(data.frame())
     }
     sub_ss <- ss[p_int[1]:p_int[2], ]
-    
+
     istart = iend = which.max(sub_ss[, 2])
     while (sub_ss[istart, 2] > 0 & istart > 1) istart <- istart - 1
     while (sub_ss[iend, 2] > 0 & iend < nrow(sub_ss)) iend <- iend + 1
-    
+
     if ((iend - istart) < npoint) {
         warning(sprintf("Less then %d datapoints in peak at mz=%.4f", npoint, mz))
         return(data.frame())
     }
-    
+
     sub_ss <- sub_ss[istart:iend, ]
     # adjusting initial parameters for gaussian fit
     startPars <- c(mu = sub_ss[which.max(sub_ss[, 2]), 1], sigma = sd(sub_ss[, 1]), I = sub_ss[which.max(sub_ss[, 2]), 2] * sd(sub_ss[, 1])/2)
@@ -55,7 +55,7 @@ get_isopeaks <- function(ss, mz, width = 0.002, npoint = 10, tol = 0.01, fixSigm
     }
     if (class(model) != "try-error" & r2 > 0.9) {
         v <- coef(model)
-        res <- tidy(model) %>% mutate(peak = "0") %>% select(peak, term, estimate) %>% spread(term, estimate) %>% mutate(R2 = r2, isoshift = 0, theorshift = 0, 
+        res <- tidy(model) %>% mutate(peak = "0") %>% select(peak, term, estimate) %>% spread(term, estimate) %>% mutate(R2 = r2, isoshift = 0, theorshift = 0,
             masserror = 0, isoratio = 1)
         for (isotope_ in c("13C", "15N", "2H", "18O")) {
             element_ = sub("\\d+", "", isotope_)
@@ -72,13 +72,13 @@ get_isopeaks <- function(ss, mz, width = 0.002, npoint = 10, tol = 0.01, fixSigm
                   startPars <- c(isomz, v["sigma"], v["I"] * (isotopes %>% filter(isotope == isotope_ & element == element_))$abundance * 4)
                   model_ = fitPeak(sub_ss[, 1], sub_ss[, 2], startPars = startPars, maxAttempts = 10, sigma = ifelse(fixSigma, v["sigma"], 0))
                   r2_ = rSquared(model_, sub_ss[, 2])
-                  
+
                   if (class(model_) != "try-error" & r2_ > 0.5) {
                     if (plot) {
                       plots[[isotope_]] <- plot_peakfit(sub_ss, model_) + ggtitle(isotope_)
                     }
                     v_ = coef(model_)
-                    res <- res %>% bind_rows(tidy(model_) %>% mutate(peak = isotope_) %>% select(peak, term, estimate) %>% spread(term, estimate) %>% mutate(R2 = r2_, 
+                    res <- res %>% bind_rows(tidy(model_) %>% mutate(peak = isotope_) %>% select(peak, term, estimate) %>% spread(term, estimate) %>% mutate(R2 = r2_,
                       isoshift = v_["mu"] - v["mu"], theorshift = isoshift_, masserror = v_["mu"] - v["mu"] - isoshift_, isoratio = v_["I"]/v["I"]))
                   }
                 }
@@ -96,7 +96,7 @@ get_isopeaks2 <- function(ss, mz, width = 0.002, npoint = 10, tol = 0.01, fixSig
     stopifnot(length(dim(ss)) == 2)
     # here we'll put our result
     res <- data.frame()
-    
+
     # Fitting monoisotopic peak
     p_int <- findInterval(c(mz - tol, mz + tol), ss[, 1])
     if (diff(p_int) < npoint) {
@@ -104,16 +104,16 @@ get_isopeaks2 <- function(ss, mz, width = 0.002, npoint = 10, tol = 0.01, fixSig
         return(data.frame())
     }
     sub_ss <- ss[p_int[1]:p_int[2], ]
-    
+
     istart = iend = which.max(sub_ss[, 2])
     while (sub_ss[istart, 2] > 0 & istart > 1) istart <- istart - 1
     while (sub_ss[iend, 2] > 0 & iend < nrow(sub_ss)) iend <- iend + 1
-    
+
     if ((iend - istart) < npoint) {
         # warning(sprintf('Less then %d datapoints in peak at mz=%.4f', npoint, mz))
         return(data.frame())
     }
-    
+
     sub_ss <- sub_ss[istart:iend, ]
     # adjusting initial parameters for gaussian fit
     startPars <- c(mu = sub_ss[which.max(sub_ss[, 2]), 1], sigma = sd(sub_ss[, 1]), I = sub_ss[which.max(sub_ss[, 2]), 2] * sd(sub_ss[, 1])/2)
@@ -124,7 +124,7 @@ get_isopeaks2 <- function(ss, mz, width = 0.002, npoint = 10, tol = 0.01, fixSig
         plots <- list()
         plots[["mono"]] <- plot_peakfit(sub_ss, model) + ggtitle("mono")
     }
-    
+
     if (class(model) != "try-error" & r2 > 0.9) {
         v <- coef(model)
         for (isotope_ in c("13C", "15N", "2H")) {
@@ -135,16 +135,16 @@ get_isopeaks2 <- function(ss, mz, width = 0.002, npoint = 10, tol = 0.01, fixSig
             sub_ss <- ss[sub_int[1]:sub_int[2], ]
             spec1 <- rbind(spec1, sub_ss)
         }
-        
+
     }
     startPars <- c(rc = 0.05, rn = 0.004, rh = 0.001, dm = 0)
     model_ <- fit_isopeaks(x = spec1[, 1], y = spec1[, 2], startPars = startPars, I = v["I"], mu = v["mu"], sigma = v["sigma"], maxAttempts = 25)
     r2_ = rSquared(model_, spec1[, 2])
     if (class(model_) != "try-error" && r2_ > 0.7) {
-        if (plot) 
+        if (plot)
             plots[["1"]] <- plot_peakfit(spec1, model_) + ggtitle("+1")
         tm <- try(tidy(model_), silent = T)
-        if (class(tm) != "try-error") 
+        if (class(tm) != "try-error")
             res <- res %>% bind_rows(tm %>% mutate(R2 = r2_, I = v["I"], sigma = v["sigma"], mu = v["mu"]))
     }
     if (plot && nrow(res) > 0) {
