@@ -2,10 +2,10 @@
 #' Given the results of \code{analyzeImmoniums} function, produces a nice html
 #' report
 #'
-#' @param data - a dataframe returned by \code{analyzeImmoniums} function.
+#' @param data a dataframe returned by \code{analyzeImmoniums} function.
 #' If \code{NA} then using \code{files}
-#' @param files - vector of csv-files containing results of \code{analyzeImmoniums}
-#' @param group - name of the column in data
+#' @param files vector of csv-files containing results of \code{analyzeImmoniums}
+#' @param group name of the column in data
 #'
 #' @return
 #' @export
@@ -90,29 +90,31 @@ summarizeImmoniums <- function(data = NA, files = NA, group = ifelse(is.na(data)
       filter(!is.na(isgood)) %>% filter(isgood &
         (peak == "0" | (isoratio/n > mmin & isoratio/n < mmax)))
 
-    message("Linear-model based method ")
-    lm_res_aa <- data %>% filter(n > 0 & I > 10 & isoratio > 0 & tic > 0) %>% mutate(I0 = I/isoratio/100,
-        I = I/n, ltic = log10(tic)) %>% group_by(peak, group, file, ion) %>% do({
-        mm <- try(MASS::rlm(I ~ I0 + ldI, data = .))
-        if (class(mm) != "try-error") {
-            tidy(mm)
-        } else {
-            data.frame()
-        }
+    data %>%
+      group_by(peak, ion) %>%
+      filter(ldI > mean(ldI - 2*sd(ldI))) %>%
+      mutate(ldI = ldI-median(ldI)) %>%
+      mutate(gg=isoratio/n) %>% ungroup() -> data_ldI
 
-    })
-    lm_res_aa %>% write_csv(file.path(resultPath, sprintf("linearmodel_summary_aa.csv")))
-    lm_res <- data %>% filter(n > 0 & I > 10 & tic > 0 & isoratio > 0) %>% mutate(I0 = I/isoratio/100,
-        I = I/n, ltic = log10(tic)) %>% group_by(peak, group, file) %>% do({
-        mm <- try(MASS::rlm(I ~ I0 + ion + ldI, data = ., method = "MM"))
-        if (class(mm) != "try-error") {
-            tidy(mm)
-        } else {
-            data.frame()
-        }
-    })
-    lm_res %>% write_csv(file.path(resultPath, sprintf("linearmodel_summary.csv")))
+    data_ldI %>%
+      filter(peak != '0') %>%
+      group_by(peak, ion) %>%
+      do({
+        dd <- .
+        peak <- dd$peak[[1]]
+        ion <- dd$ion[[1]]
+        if(length(unique(dd$group))>1){
+          tidy(lm(gg~ldI+group, data=.))
+        } else
+          tidy(lm(gg~ldI, data=.))
+      }) %>% filter(term=='ldI') -> ldI_model
 
+    data_ldI <- data_ldI %>%
+      left_join(ldI_model, by=c('peak', 'ion')) %>%
+      mutate(gg=gg-ldI*estimate)
+
+    data <- data_ldI %>%
+      mutate(isoratio = gg*n)
 
     if (file.exists(file.path(resultPath, "all_aa.RData"))) {
         message("all_aa.RData file exists, will not recalculate it.")
@@ -141,7 +143,8 @@ summarizeImmoniums <- function(data = NA, files = NA, group = ifelse(is.na(data)
             for (el in peaks) {
                 good_aa <- (dd %>% filter(peak == el & I > 0) %>% distinct(ion))$ion
                 i0s <- (dd %>% filter(ion %in% good_aa & peak == "0"))$I
-                i1s <- (dd %>% filter(ion %in% good_aa & peak == el))$I
+                i1s <- (dd %>% filter(ion %in% good_aa & peak == el))$isoratio
+                i1s <- i1s * i0s
                 ns <- (dd %>% filter(ion %in% good_aa & peak == el))$n
 
                 rs <- i1s/i0s

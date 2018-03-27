@@ -1,3 +1,18 @@
+#' Extracting isotope peak intensities for immonium ions from mzML file
+#'
+#'
+#' @param file mzML file containing immonium scans (m/z range 50-200, HCD energy 50);
+#' @param width fitting window width;
+#' @param ions list of compounds to fit. Each element of the list should represent
+#' named vector with element names as vector names and numbers of corresponding
+#' elements as value, e.g. \code{c("C" = 4, "H" = 8, "N" = 1)};
+#' @param fixSigma if True, \code{sigma} is fitted only for monoisotopic peak
+#' and fixed for other peaks;
+#'
+#' @return Data frame with fitting results for each spectrum in input \code{file}.
+#' @export
+#'
+#' @examples
 analyze_immoniums <- function(file, width=0.001, ions=immoniumIons, fixSigma=T){
   message(sprintf("Reading file [%s]", file))
   msrun <- openMSfile(file, backend = "Ramp")

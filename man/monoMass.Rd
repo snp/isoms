@@ -7,7 +7,7 @@
 monoMass(comp)
 }
 \arguments{
-\item{comp}{- named vector or list of molecule composition, e.g.
+\item{comp}{named vector or list of molecule composition, e.g.
 \code{c('C' = 4, 'H' = 8, 'N' = 1)}}
 }
 \value{

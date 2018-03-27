@@ -1,3 +1,15 @@
+#' rSquared
+#'
+#' calculates R^2 for the fitting model
+#'
+#' @param model object of class nls or lm, or similar providing \code{predict}
+#' function.
+#' @param y numeric vector of dependent variable used to make \code{model}.
+#'
+#' @return single numeric R^2 value, or NA if \code{class(model) == "try-error"}.
+#' @export
+#'
+#' @examples
 rSquared <- function(model, y) {
     ## Determine R2 of a fitted model
     if (class(model) != "try-error") {

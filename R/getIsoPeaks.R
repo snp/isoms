@@ -16,6 +16,8 @@
 #' @param tol m/z tolerance for searching monoisotopic peak.
 #' @param fixSigma If True, then peak width is only fitted for monoisotopic
 #' peak, and then it is fixed for the rest isotopes.
+#' @param plot If True, fitted peaks are plotted using ggplot.
+#' @param peaks Character vector defining which peaks to fit (13C, 15N, 2H or 18O).
 #'
 #' @return Dataframe with peak parameters
 #' @export
@@ -91,6 +93,33 @@ get_isopeaks <- function(ss, mz, width = 0.002, npoint = 10, tol = 0.01, fixSigm
     return(res)
 }
 
+
+#' Isotopic peaks fitting for specified m/z
+#'
+#' Petforms peak fitting at provided 'm/z' value, and also fits fine isotopic
+#' structure of +1 isotopic peak corresponding to the 13C, 15N and 2H isotopes.
+#' Unlike \code{get_isopeaks}, isotopic peaks are not fitted separately, but
+#' rather as a single envelope with fixed m/z values for peaks.
+#' Returns data_frame object containing information about fitting results.
+#'
+#'
+#' @param ss Spectrum formatted as numeric matrix with 2 columns (m/z and i),
+#' sorted by mz
+#' @param mz m/z value corresponding to the monoisotopic mass of singly charged
+#' ion
+#' @param width m/z interval for searching the isotopic peaks. Default value is
+#' 0.002 which is good for resolution 50-60K (at m/z=200).
+#' @param npoint Minimum number of data points in the peak. If peak have less
+#' points it will be rejected.
+#' @param tol m/z tolerance for searching monoisotopic peak.
+#' @param fixSigma If True, then peak width is only fitted for monoisotopic
+#' peak, and then it is fixed for the rest isotopes.
+#' @param plot If True, fitted peaks are plotted using ggplot.
+#'
+#' @return Dataframe with peak parameters
+#' @export
+#'
+#' @examples
 get_isopeaks2 <- function(ss, mz, width = 0.002, npoint = 10, tol = 0.01, fixSigma = T, plot = F) {
     # Checking input data
     stopifnot(length(dim(ss)) == 2)

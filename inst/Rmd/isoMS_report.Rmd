@@ -78,6 +78,21 @@ aa_data <- all_aa %>%
   filter(gamma>(m-3*md) & gamma < (m+3*md))
 aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(n=n(),md=mean(md)) %>% filter(md>0, n==nf) %>% arrange(md))$ion)
 
+aa_data <- aa_data %>% 
+  group_by(group, ion) %>%
+  mutate(ldI = ldI-median(ldI)) %>% ungroup()
+
+aa_data %>% 
+  group_by(group, ion) %>%
+  do({
+    dd_ <- .
+    broom::tidy(lm(gamma~ldI, data=dd_))
+  }) %>% filter(term=='ldI') %>% select(group, ion, estimate) -> ldI_models
+
+aa_data <- aa_data %>% 
+  left_join(ldI_models, by=c('group','ion')) %>% 
+  mutate(gamma=gamma - ldI*estimate)
+
 ion_plot <- levels(aa_data$ion)[1:4]
 aa_data %>% 
   filter(ion %in% ion_plot) %>% 
@@ -288,6 +303,21 @@ aa_data <- all_aa %>%
   filter(gamma>(m-3*md) & gamma < (m+3*md))
 aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% filter(md>0) %>% arrange(md))$ion)
 
+aa_data <- aa_data %>% 
+  group_by(group, ion) %>%
+  mutate(ldI = ldI-median(ldI)) %>% ungroup()
+
+aa_data %>% 
+  group_by(group, ion) %>%
+  do({
+    dd_ <- .
+    broom::tidy(lm(gamma~ldI, data=dd_))
+  }) %>% filter(term=='ldI') %>% select(group, ion, estimate) -> ldI_models
+
+aa_data <- aa_data %>% 
+  left_join(ldI_models, by=c('group','ion')) %>% 
+  mutate(gamma=gamma - ldI*estimate)
+
 ion_plot <- levels(aa_data$ion)[1:4]
 
 aa_data %>% 
@@ -490,6 +520,21 @@ aa_data <- all_aa %>%
   filter(gamma>(m-3*md) & gamma < (m+3*md))
 aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% filter(md>0) %>% arrange(md))$ion)
 
+aa_data <- aa_data %>% 
+  group_by(group, ion) %>%
+  mutate(ldI = ldI-median(ldI)) %>% ungroup()
+
+aa_data %>% 
+  group_by(group, ion) %>%
+  do({
+    dd_ <- .
+    broom::tidy(lm(gamma~ldI, data=dd_))
+  }) %>% filter(term=='ldI') %>% select(group, ion, estimate) -> ldI_models
+
+aa_data <- aa_data %>% 
+  left_join(ldI_models, by=c('group','ion')) %>% 
+  mutate(gamma=gamma - ldI*estimate)
+
 ion_plot <- levels(aa_data$ion)[1:4]
 aa_data %>% 
   filter(ion %in% ion_plot) %>% 
@@ -689,6 +734,21 @@ aa_data <- all_aa %>%
   left_join(mmad, by=c('ion','file')) %>% 
   filter(gamma>(m-3*md) & gamma < (m+3*md))
 aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% filter(md>0) %>% arrange(md))$ion)
+
+aa_data <- aa_data %>% 
+  group_by(group, ion) %>%
+  mutate(ldI = ldI-median(ldI)) %>% ungroup()
+
+aa_data %>% 
+  group_by(group, ion) %>%
+  do({
+    dd_ <- .
+    broom::tidy(lm(gamma~ldI, data=dd_))
+  }) %>% filter(term=='ldI') %>% select(group, ion, estimate) -> ldI_models
+
+aa_data <- aa_data %>% 
+  left_join(ldI_models, by=c('group','ion')) %>% 
+  mutate(gamma=gamma - ldI*estimate)
 
 ion_plot <- levels(aa_data$ion)[1:4]
 aa_data %>% 

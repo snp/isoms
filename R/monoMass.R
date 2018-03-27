@@ -2,7 +2,7 @@
 #'
 #' calculates the monoisotopic mass of a molecule with a composition \code{comp}
 #'
-#' @param comp - named vector or list of molecule composition, e.g.
+#' @param comp named vector or list of molecule composition, e.g.
 #' \code{c('C' = 4, 'H' = 8, 'N' = 1)}
 #' @return monoisotopic mass of the molecule
 #' @export

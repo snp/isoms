@@ -10,12 +10,12 @@ summarizeImmoniums(data = NA, files = NA, group = ifelse(is.na(data),
   "file", NA), resultPath = "./isoMS_result")
 }
 \arguments{
-\item{data}{- a dataframe returned by \code{analyzeImmoniums} function.
+\item{data}{a dataframe returned by \code{analyzeImmoniums} function.
 If \code{NA} then using \code{files}}
 
-\item{files}{- vector of csv-files containing results of \code{analyzeImmoniums}}
+\item{files}{vector of csv-files containing results of \code{analyzeImmoniums}}
 
-\item{group}{- name of the column in data}
+\item{group}{name of the column in data}
 }
 \description{
 summarizeImmoniums - generate the summary of the immonium analysis

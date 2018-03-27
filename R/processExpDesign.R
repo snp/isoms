@@ -1,11 +1,41 @@
-processExperimentDesign <- function() {
+#' Processing isoMS experiment design by means of Rscript
+#'
+#' Requires results of isotope peak fitting made using \code{analyze_immoniums}
+#' function stored as CSV files. CSV files can be made from mzML spectra
+#' by means of \code{mzMLtoCSV} function using \code{Rscript} from commandline.
+#'
+#' @param file path to experimentDesign.csv; if function called using Rscript,
+#' then filepath given as an argument has priority;
+#'
+#' @return Creates output directory with the same name as experimentDesign file.
+#' Directory contains HTML result and supporting data.
+#'
+#' @export
+#'
+#' @examples
+processExperimentDesign <- function(file="experimentDesign.csv") {
     library(isoms)
     args_ <- commandArgs(trailingOnly = TRUE)
-    expDesignFile <- args_[[1]]
-    if (!file.exists(expDesignFile)) {
+    if(length(args_)>0){
+      expDesignFile <- args_[[1]]
+      if (!file.exists(expDesignFile)){
+        if(file.exists(file)){
+          warning(sprintf("File [%s] doesn't exist, using [%s] instead", expDesignFile, file))
+          expDesignFile <- file
+        } else {
+          message("You must provide corrent experimentDesign file location")
+          return(0)
+        }
+      }
+    } else{
+      if(file.exists(file))
+        expDesignFile <- file
+      else{
         message("You must provide corrent experimentDesign file location")
         return(0)
+      }
     }
+
     expDesign <- suppressMessages(read_csv(expDesignFile))
     message("Samples to analyze: ", toString(unique(expDesign$Sample)))
     message("Number of controls: ", nrow(expDesign %>% filter(Sample == "Control")))
@@ -25,6 +55,3 @@ processExperimentDesign <- function() {
     summarizeImmoniums(data = data_, group = "group", resultPath = outdir)
 }
 
-# ff <- list.files('~/tmp/Immonium/Peptome/20170901/', pattern = '.*_\\d+.*_gaussian2.csv') data <- bind_rows( lapply( ff, function(x){ print(x)
-# read_csv(file.path('~/tmp/Immonium/Peptome/20170901', x)) %>% mutate( file=sub('.*Imm_(.+)_gaussian.*','\\1',x), group=sub('_\\d+','',file),
-# loading=as.numeric(sub('.*_(\\d+)_gaussian.*','\\1', x))) } ) )

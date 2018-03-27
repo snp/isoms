@@ -5,7 +5,7 @@
 \title{Isotopic peaks fitting for specified m/z}
 \usage{
 get_isopeaks(ss, mz, width = 0.002, npoint = 10, tol = 0.01,
-  fixSigma = T, plot = F)
+  fixSigma = T, plot = F, peaks = c("13C", "15N", "2H", "18O"))
 }
 \arguments{
 \item{ss}{Spectrum formatted as numeric matrix with 2 columns (m/z and i),
@@ -24,6 +24,10 @@ points it will be rejected.}
 
 \item{fixSigma}{If True, then peak width is only fitted for monoisotopic
 peak, and then it is fixed for the rest isotopes.}
+
+\item{plot}{If True, fitted peaks are plotted using ggplot.}
+
+\item{peaks}{Character vector defining which peaks to fit (13C, 15N, 2H or 18O).}
 }
 \value{
 Dataframe with peak parameters
