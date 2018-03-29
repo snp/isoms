@@ -58,6 +58,27 @@ lm_res %>%
 ```
 -->
 
+## Aminoacid composition
+
+```{r aa_comp, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12, fig.height=12}
+all_aa %>% 
+  filter(peak=="13C" & ion != 'any') %>% 
+  group_by(group, ion) %>% 
+  summarize(abundance=sum(I0, na.rm=T)) %>% 
+  mutate(abundance = abundance/sum(abundance)*100) -> aa_abundances
+
+aa_abundances$ion <- factor(aa_abundances$ion, 
+                            levels=aa_abundances %>% 
+                              group_by(ion) %>% 
+                              summarize(s=sum(abundance)) %>% 
+                              arrange(desc(s)) %>% 
+                              select(ion) %>% unlist())
+
+aa_abundances %>% 
+  ggplot(aes(x=ion, y=abundance, fill=group)) + geom_col(position='dodge') + 
+  theme_bw() + ylab("Abundance, %") + xlab("AA")
+```
+
 ## Carbon: $$^{13}C/^{12}C$$ {.tabset}
 
 ### Data overview
@@ -76,7 +97,12 @@ aa_data <- all_aa %>%
   filter(peak=='13C') %>% 
   left_join(mmad, by=c('ion','file')) %>% 
   filter(gamma>(m-3*md) & gamma < (m+3*md))
-aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(n=n(),md=mean(md)) %>% filter(md>0, n==nf) %>% arrange(md))$ion)
+aa_data$ion <- factor(
+  aa_data$ion, 
+  levels = (mmad %>% 
+              summarise(n=n(),md=mean(md)) %>%
+              mutate(sortby = ifelse((md>0 & n==nf), md, 1e5)) %>% 
+              arrange(md, desc(n)))$ion)
 
 aa_data <- aa_data %>% 
   group_by(group, ion) %>%
@@ -301,7 +327,12 @@ aa_data <- all_aa %>%
   filter(peak=='15N') %>% 
   left_join(mmad, by=c('ion','file')) %>% 
   filter(gamma>(m-3*md) & gamma < (m+3*md))
-aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% filter(md>0) %>% arrange(md))$ion)
+aa_data$ion <- factor(
+  aa_data$ion, 
+  levels = (mmad %>% 
+              summarise(n=n(),md=mean(md)) %>%
+              mutate(sortby = ifelse((md>0 & n==nf), md, 1e5)) %>% 
+              arrange(md, desc(n)))$ion)
 
 aa_data <- aa_data %>% 
   group_by(group, ion) %>%
@@ -518,7 +549,12 @@ aa_data <- all_aa %>%
   filter(peak=='2H') %>% 
   left_join(mmad, by=c('ion','file')) %>% 
   filter(gamma>(m-3*md) & gamma < (m+3*md))
-aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% filter(md>0) %>% arrange(md))$ion)
+aa_data$ion <- factor(
+  aa_data$ion, 
+  levels = (mmad %>% 
+              summarise(n=n(),md=mean(md)) %>%
+              mutate(sortby = ifelse((md>0 & n==nf), md, 1e5)) %>% 
+              arrange(md, desc(n)))$ion)
 
 aa_data <- aa_data %>% 
   group_by(group, ion) %>%
@@ -733,7 +769,12 @@ aa_data <- all_aa %>%
   filter(peak=='18O') %>% 
   left_join(mmad, by=c('ion','file')) %>% 
   filter(gamma>(m-3*md) & gamma < (m+3*md))
-aa_data$ion <- factor(aa_data$ion, levels = (mmad %>% summarise(md=median(md)) %>% filter(md>0) %>% arrange(md))$ion)
+aa_data$ion <- factor(
+  aa_data$ion, 
+  levels = (mmad %>% 
+              summarise(n=n(),md=mean(md)) %>%
+              mutate(sortby = ifelse((md>0 & n==nf), md, 1e5)) %>% 
+              arrange(md, desc(n)))$ion)
 
 aa_data <- aa_data %>% 
   group_by(group, ion) %>%
@@ -931,6 +972,41 @@ res %>%
     )}
 ```
 
+## Final tabels {.tabset}
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=12}
+fileres_C %>% 
+  summarize(C=mean(median), C_cv = sd(median)/mean(median)/sqrt(n())*100) %>% ungroup() %>%  
+  full_join(
+    fileres_N %>% 
+      summarize(N=mean(median), N_cv = sd(median)/mean(median)/sqrt(n())*100) %>% ungroup()
+  ) %>% 
+  full_join(
+    fileres_H %>% 
+      summarize(H=mean(median), H_cv = sd(median)/mean(median)/sqrt(n())*100) %>% ungroup()
+  ) %>% 
+  full_join(
+    fileres_O %>% 
+      summarize(O=mean(median), O_cv = sd(median)/mean(median)/sqrt(n())*100) %>% ungroup()
+  ) -> isotopes_combined
+
+
+aa_data$ion <- factor(
+  aa_data$ion, 
+  levels = (mmad %>% 
+              summarise(n=n(),md=mean(md)) %>%
+              mutate(sortby = ifelse((md>0 & n==nf), md, 1e5)) %>% 
+              arrange(md, desc(n)))$ion)
+
+
+isotopes_combined %>% 
+    datatable(extensions = 'Buttons', options = list(
+                                        dom = 'Bfrtip',
+                                        buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
+    )) %>%  
+    formatSignif(c('C','N','O','H'), 4) %>%
+    formatSignif(c('C_cv','N_cv','O_cv','H_cv'), 3)
+```
 
 ## Final plots {.tabset}
 

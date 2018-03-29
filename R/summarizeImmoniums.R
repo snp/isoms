@@ -34,13 +34,12 @@ summarizeImmoniums <- function(data = NA, files = NA, group = ifelse(is.na(data)
         TIClimits <- data %>% group_by(file) %>% summarize(minTIC = min(tic, na.rm = T),
             maxTIC = max(tic, na.rm = T)) %>% summarize(low = max(c(2e+07, minTIC)),
             high = min(maxTIC))
-        data <- data %>% filter(tic > TIClimits$low[1]/2 & tic < TIClimits$high[1] *
-            2)
+        data <- data %>% filter(tic > TIClimits$low[1]/4 & tic < TIClimits$high[1] *
+            4)
     } else {
         data$tic <- 10
     }
     mass_tol <- 3e-04
-
     if (!("file" %in% names(data))) {
         data <- data %>% mutate(file = "file")
     }
@@ -89,12 +88,12 @@ summarizeImmoniums <- function(data = NA, files = NA, group = ifelse(is.na(data)
       left_join(ranges, by = c("file", "ion", "peak")) %>%
       filter(!is.na(isgood)) %>% filter(isgood &
         (peak == "0" | (isoratio/n > mmin & isoratio/n < mmax)))
-
     data %>%
       group_by(peak, ion) %>%
-      filter(ldI > mean(ldI - 2*sd(ldI))) %>%
+      filter(ldI > (mean(ldI) - 2*sd(ldI))) %>%
       mutate(ldI = ldI-median(ldI)) %>%
       mutate(gg=isoratio/n) %>% ungroup() -> data_ldI
+
 
     data_ldI %>%
       filter(peak != '0') %>%
@@ -210,7 +209,6 @@ summarizeImmoniums <- function(data = NA, files = NA, group = ifelse(is.na(data)
         }) %>% collect() %>% ungroup()
         save(any_aa, all_aa, loess_C, loess_N, loess_H, loess_O, file = file.path(resultPath,
             "all_aa.RData"))
-
     }
 
     message("Grouping results and writing output tables: ")

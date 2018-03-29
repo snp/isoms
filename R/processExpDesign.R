@@ -42,7 +42,9 @@ processExperimentDesign <- function(file="experimentDesign.csv") {
 
     outdir <- file.path(dirname(normalizePath(expDesignFile)), sub(".csv$", "", basename(normalizePath(expDesignFile))))
 
-    data_ <- expDesign %>% rowwise() %>% do({
+    data_ <- expDesign %>%
+      rowwise() %>%
+      do({
         xx = .
         fd <- suppressWarnings(suppressMessages(read_csv(xx$File,
                                                          col_types = cols(tic=col_double(),
@@ -50,8 +52,15 @@ processExperimentDesign <- function(file="experimentDesign.csv") {
                                                                           ltic=col_double()))))
         if ("totIonCurrent" %in% names(fd))
             fd <- fd %>% mutate(tic = totIonCurrent) %>% select(-totIonCurrent)
-        fd %>% mutate(file = xx$File, group = xx$Sample, loading = xx$Loading) %>% filter(rt > (xx$Start * 60) & (rt < xx$End * 60))
-    }) %>% ungroup() %>% mutate(I0 = I/isoratio) %>% mutate(dI = I0/tic, ldI = log10(dI)) %>% mutate(ltic = log10(tic))
+        fd %>%
+          mutate(I=abs(I), sigma=abs(sigma)) %>%
+          mutate(file = xx$File, group = xx$Sample, loading = xx$Loading) %>%
+          filter(rt > (xx$Start * 60) & (rt < xx$End * 60))
+    }) %>%
+      ungroup() %>%
+      mutate(I0 = I/isoratio) %>%
+      mutate(dI = I0/tic, ldI = log10(dI)) %>%
+      mutate(ltic = log10(tic))
     summarizeImmoniums(data = data_, group = "group", resultPath = outdir)
 }
 
