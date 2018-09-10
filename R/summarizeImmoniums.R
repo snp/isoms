@@ -11,8 +11,13 @@
 #' @export
 #'
 #' @examples
-summarizeImmoniums <- function(data = NA, files = NA, group = ifelse(is.na(data),
-    "file", NA), resultPath = "./isoMS_result") {
+summarizeImmoniums <- function(data = NA,
+                               files = NA,
+                               group = ifelse(is.na(data),
+                                              "file",
+                                              NA),
+                               resultPath = "./isoMS_result",
+                               correct=T) {
     if (is.na(data)) {
         if (class(files) == "character")
             data <- bind_rows(lapply(files, function(f) {
@@ -90,7 +95,7 @@ summarizeImmoniums <- function(data = NA, files = NA, group = ifelse(is.na(data)
         (peak == "0" | (isoratio/n > mmin & isoratio/n < mmax)))
     data %>%
       group_by(peak, ion) %>%
-      filter(ldI > (mean(ldI) - 2*sd(ldI))) %>%
+      filter(ldI > (median(ldI) - 2*mad(ldI))) %>%
       mutate(ldI = ldI-median(ldI)) %>%
       mutate(gg=isoratio/n) %>% ungroup() -> data_ldI
 
@@ -112,8 +117,12 @@ summarizeImmoniums <- function(data = NA, files = NA, group = ifelse(is.na(data)
       left_join(ldI_model, by=c('peak', 'ion')) %>%
       mutate(gg=gg-ldI*estimate)
 
-    data <- data_ldI %>%
-      mutate(isoratio = gg*n)
+    if(correct){
+      data <- data_ldI %>%  # mutate(isoratio = gg*n) %>%
+        mutate(gamma = gg)
+    } else {
+      data <- data %>% mutate(gamma = isoratio/n)
+    }
 
     if (file.exists(file.path(resultPath, "all_aa.RData"))) {
         message("all_aa.RData file exists, will not recalculate it.")
@@ -168,7 +177,7 @@ summarizeImmoniums <- function(data = NA, files = NA, group = ifelse(is.na(data)
 
         message("Puting ions together: ")
 
-        all_aa <- data %>% filter(n > 0 & I > 0) %>% mutate(gamma = isoratio/n, logI = log2(I)) %>%
+        all_aa <- data %>% filter(n > 0 & I > 0) %>% mutate(logI = log2(I)) %>%
             select(group, file, peak, gamma, logI, tic, ltic, dI, ldI, I0, seqNum,
                 rt, ion) %>% bind_rows(any_aa) %>% ungroup()
         save(any_aa, all_aa, file = file.path(resultPath, "all_aa.RData"))

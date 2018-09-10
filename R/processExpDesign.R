@@ -13,7 +13,7 @@
 #' @export
 #'
 #' @examples
-processExperimentDesign <- function(file="experimentDesign.csv") {
+processExperimentDesign <- function(file="experimentDesign.csv", correct=TRUE) {
     library(isoms)
     args_ <- commandArgs(trailingOnly = TRUE)
     if(length(args_)>0){
@@ -61,6 +61,9 @@ processExperimentDesign <- function(file="experimentDesign.csv") {
       mutate(I0 = I/isoratio) %>%
       mutate(dI = I0/tic, ldI = log10(dI)) %>%
       mutate(ltic = log10(tic))
-    summarizeImmoniums(data = data_, group = "group", resultPath = outdir)
+    summarizeImmoniums(data = data_,
+                       group = "group",
+                       resultPath = outdir,
+                       correct=correct)
 }
 
