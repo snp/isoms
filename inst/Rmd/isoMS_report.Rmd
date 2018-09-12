@@ -96,6 +96,7 @@ nf <- length(unique(all_aa$file))
 aa_data <- all_aa %>%
   filter(peak=='13C') %>% 
   left_join(mmad, by=c('ion','file')) %>% 
+  filter(md > 0) %>% 
   filter(gamma>(m-3*md) & gamma < (m+3*md))
 aa_data$ion <- factor(
   aa_data$ion, 
@@ -326,6 +327,7 @@ all_aa %>%
 aa_data <- all_aa %>%
   filter(peak=='15N') %>% 
   left_join(mmad, by=c('ion','file')) %>% 
+  filter(md > 0) %>% 
   filter(gamma>(m-3*md) & gamma < (m+3*md))
 aa_data$ion <- factor(
   aa_data$ion, 
@@ -548,6 +550,7 @@ all_aa %>%
 aa_data <- all_aa %>%
   filter(peak=='2H') %>% 
   left_join(mmad, by=c('ion','file')) %>% 
+  filter(md > 0) %>% 
   filter(gamma>(m-3*md) & gamma < (m+3*md))
 aa_data$ion <- factor(
   aa_data$ion, 

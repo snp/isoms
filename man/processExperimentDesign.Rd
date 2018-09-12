@@ -4,7 +4,7 @@
 \alias{processExperimentDesign}
 \title{Processing isoMS experiment design by means of Rscript}
 \usage{
-processExperimentDesign(file = "experimentDesign.csv")
+processExperimentDesign(file = "experimentDesign.csv", correct = TRUE)
 }
 \arguments{
 \item{file}{path to experimentDesign.csv; if function called using Rscript,

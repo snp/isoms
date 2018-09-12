@@ -7,7 +7,7 @@ Given the results of \code{analyzeImmoniums} function, produces a nice html
 report}
 \usage{
 summarizeImmoniums(data = NA, files = NA, group = ifelse(is.na(data),
-  "file", NA), resultPath = "./isoMS_result")
+  "file", NA), resultPath = "./isoMS_result", correct = T)
 }
 \arguments{
 \item{data}{a dataframe returned by \code{analyzeImmoniums} function.
